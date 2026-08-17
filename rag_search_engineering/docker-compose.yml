@@ -1,0 +1,54 @@
+# 他の教材の sandbox とコンテナ名が衝突しないようプロジェクト名を明示する
+name: rag-search-sandbox
+
+services:
+  app:
+    build: .
+    working_dir: /workspace
+    depends_on:
+      - qdrant
+    volumes:
+      # ローカルのコードをコンテナにマウント（編集が即反映される）
+      - .:/workspace
+      # モデルのダウンロード結果を保持する（毎回落とし直さない）
+      - hf-cache:/models
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - OPENSEARCH_URL=http://opensearch:9200
+      # APIキーは「あれば渡す」。無くても全演習が動く（合成カセットで回る）
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - PYTHONUNBUFFERED=1
+    # Web サーバーではないため、待機させて exec でコマンドを送る
+    command: sleep infinity
+    tty: true
+
+  qdrant:
+    # クライアント（requirements.txt の qdrant-client）とメジャー・マイナーを揃える。
+    # ずれると起動はするが毎回バージョン不整合の警告が出る
+    image: qdrant/qdrant:v1.19.0
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports:
+      # ブラウザから http://localhost:6333/dashboard で中身を確認できる
+      - "6333:6333"
+
+  # セッション5・16 でのみ使う。既定では起動しない
+  #   起動: docker compose --profile search-engine up -d
+  opensearch:
+    image: opensearchproject/opensearch:2.19.1
+    profiles: [search-engine]
+    environment:
+      - discovery.type=single-node
+      # 2 vCPU / 6GB の Docker VM でも動くようヒープを絞る
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    ports:
+      - "9200:9200"
+
+volumes:
+  hf-cache:
+  qdrant-data:

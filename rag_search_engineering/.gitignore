@@ -1,0 +1,8 @@
+# 生成物のみ追跡しない（生成器 tools/ と ragkit/ src/ は追跡する）
+corpus/
+fixtures/
+reports/
+src/session03/out/
+__pycache__/
+*.pyc
+.env

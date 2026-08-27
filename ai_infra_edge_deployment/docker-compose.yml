@@ -1,0 +1,102 @@
+# 他の教材の sandbox とコンテナ名が衝突しないようプロジェクト名を明示する
+name: ai-infra-edge-sandbox
+
+services:
+  app:
+    build: .
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - hf-cache:/models
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LLAMA_URL=http://llama:8080
+      - GATEWAY_URL=http://gateway:8000
+      - OMP_NUM_THREADS=2
+    command: sleep infinity
+    tty: true
+
+  # 初回だけ実行して GGUF を作る。常駐させない
+  #   docker compose --profile prepare run --rm llamacpp -c --outtype f16 /work/models/hf/qwen05b
+  llamacpp:
+    image: ghcr.io/ggml-org/llama.cpp:full
+    profiles: [prepare]
+    volumes:
+      - .:/work
+      - hf-cache:/models
+    # working_dir は指定しない。--convert はイメージ内の作業ディレクトリにある
+    # convert_hf_to_gguf.py を実行するため、上書きすると動かない（実際に踏んだ）
+
+  # 推論サーバ（CPU）。量子化・並列スロット数・コンテキスト長を環境変数で切り替える。
+  #   MODEL_FILE=qwen05b-q8_0.gguf SLOTS=1 docker compose up -d llama
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:full
+    command: >
+      --server
+      -m /work/models/gguf/${MODEL_FILE:-qwen05b-q4_k_m.gguf}
+      --host 0.0.0.0 --port 8080
+      -c ${CTX:-2048} -np ${SLOTS:-2} -t ${THREADS:-2}
+      --metrics
+      --slots
+    volumes:
+      - .:/work
+    ports:
+      # ホスト側のポートは LLAMA_HOST_PORT で退避できる（8080 が別プロセスに使われている場合）
+      - "${LLAMA_HOST_PORT:-8080}:8080"
+    healthcheck:
+      # モデルのロードが終わるまで healthy にならない（セッション4の題材）
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
+
+  gateway:
+    build: .
+    working_dir: /workspace
+    command: uvicorn gateway.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/workspace
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LLAMA_URL=http://llama:8080
+      - RATE_LIMIT_RPS=2
+      - RATE_LIMIT_BURST=4
+    ports:
+      - "${GATEWAY_HOST_PORT:-8000}:8000"
+    depends_on:
+      llama:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    profiles: [metrics]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+
+  # Kubernetes の道具（セッション8・任意起動）。既定では起動しない。
+  #
+  # クラスタは要らない。--dry-run=client はローカルで検査するだけだが、既定の
+  # 検証（--validate=strict）はクラスタの OpenAPI スキーマを見に行くので、
+  # クラスタが無いときは --validate=false を付ける（構文とフィールド名だけ見る）。
+  #   docker compose --profile k8s run --rm kubectl apply --dry-run=client \
+  #     --validate=false -f k8s/inference-deployment.yaml
+  #
+  # **本書の検証はこのサービスに依存しない。** 推論固有の検査は
+  # src/session08/lint_manifest.py（クラスタも kubectl も不要）で完結させている。
+  # kind でクラスタを立てる経路は、kind がホストの Docker にノードのコンテナを
+  # 作る仕組みなので、コンテナの中ではなく**ホスト**に kind を入れて使う
+  # （手順は k8s/kind-cluster.yaml のコメント）。
+  kubectl:
+    # タグは kubectl のバージョン。クラスタに合わせて K8S_TOOLS_TAG で上書きする
+    image: alpine/k8s:${K8S_TOOLS_TAG:-1.33.1}
+    profiles: [k8s]
+    entrypoint: ["kubectl"]
+    working_dir: /work
+    volumes:
+      - .:/work
+
+volumes:
+  hf-cache:

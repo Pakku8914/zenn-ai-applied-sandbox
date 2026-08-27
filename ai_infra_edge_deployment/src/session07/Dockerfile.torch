@@ -1,0 +1,32 @@
+# セッション7：CPU 専用 wheel の有無でイメージがどれだけ変わるかを測る実験用
+#
+#   # CPU 専用の index から入れる
+#   docker build -f src/session07/Dockerfile.torch \
+#       --build-arg TORCH_SPEC=torch==<自分で選んだバージョン> \
+#       -t exp-torch:cpu .
+#
+#   # 既定の PyPI から入れる（GPU 用のランタイムまで付いてくる）
+#   docker build -f src/session07/Dockerfile.torch \
+#       --build-arg TORCH_SPEC=torch==<同じバージョン> \
+#       --build-arg TORCH_INDEX=https://pypi.org/simple \
+#       -t exp-torch:default .
+#
+#   docker images exp-torch             # 2つのサイズを並べて比べる
+#
+# 注意：既定の index 側は数GBのダウンロードが発生する。ディスクと回線に余裕が
+# あるときだけ実行すること。片付けは `docker image rm exp-torch:cpu exp-torch:default`。
+
+FROM python:3.12-slim
+
+# バージョンは読者が固定する。無指定ではビルドを失敗させる（再現性のため）
+ARG TORCH_SPEC
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
+
+RUN test -n "${TORCH_SPEC}" \
+    || (echo "TORCH_SPEC を --build-arg で指定してください（例: torch==2.x.y）" && exit 1)
+
+RUN pip install --no-cache-dir --index-url "${TORCH_INDEX}" "${TORCH_SPEC}"
+
+USER 10001
+
+CMD ["python", "-c", "import torch; print(torch.__version__)"]

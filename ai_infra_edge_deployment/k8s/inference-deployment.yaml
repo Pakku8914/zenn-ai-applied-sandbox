@@ -1,0 +1,182 @@
+# セッション8で読む・書くマニフェスト。
+# 推論ワークロード固有の設定に絞ってある（K8s の基礎は姉妹教材へ）。
+#
+# 検証（クラスタも kubectl も要らない。数字の根拠まで表示される）:
+#   docker compose exec app python src/session08/lint_manifest.py --explain \
+#     k8s/inference-deployment.yaml
+#
+# 追加の確認（kubectl を持っている場合のみ。クラスタは不要）:
+#   kubectl apply --dry-run=client -f k8s/inference-deployment.yaml
+#
+# このファイルの数字はすべて src/session08/budget.py の式から出している。
+# モデルやコンテキスト長を変えたら、手で直す前に必ず lint を通し直すこと。
+#
+# lint の結果は「エラー 0 件 / 警告 2 件」になる。残している警告は次の2つで、
+# どちらも理由があって残している（理由が書けない警告は直すこと）。
+#   image-digest       : 読者の環境で pull できるようタグ止めにしている。
+#                        本番では @sha256:... まで固定する（セッション7）
+#   probe-paths-shared : llama.cpp が /health しか持たないため、readiness と
+#                        liveness が同じパスを見る。猶予の長さで役割を分けている
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-inference
+  labels:
+    app: llama-inference
+spec:
+  # コールドスタートが長いので、最小レプリカを0にしない（セッション9で扱う）
+  replicas: 2
+  selector:
+    matchLabels:
+      app: llama-inference
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # 推論はロードが遅い。新しい Pod が準備できるまで古い Pod を落とさない
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: llama-inference
+    spec:
+      # 非root で動かす。emptyDir は fsGroup でグループ書き込みを許す
+      # （初期化コンテナが /models に書けなくなるのを防ぐ）
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      # 重みをイメージに焼かず、初期化コンテナで配置する（セッション7の3方式のうちの1つ）
+      initContainers:
+        - name: fetch-model
+          image: busybox:1.37.0
+          command: ["sh", "-c"]
+          args:
+            - |
+              if [ ! -f /models/qwen05b-q4_k_m.gguf ]; then
+                echo "モデルを配置します（実運用ではオブジェクトストレージから取得する）"
+                cp /seed/qwen05b-q4_k_m.gguf /models/
+              fi
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: model-seed
+              mountPath: /seed
+              readOnly: true
+      containers:
+        - name: llama
+          image: ghcr.io/ggml-org/llama.cpp:full
+          args:
+            - --server
+            - -m
+            - /models/qwen05b-q4_k_m.gguf
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+            - -c
+            - "2048"
+            - -np
+            - "2"
+            # スレッド数は limits.cpu と揃える（超えると切り替えの分だけ遅くなる）
+            - -t
+            - "2"
+            - --metrics
+            - --slots
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # 【要点】モデルのロード完了を待つのは startupProbe の仕事。
+          # startupProbe が成功するまで readinessProbe と livenessProbe は動かない。
+          # これを省くと livenessProbe がロード中から数え始め、猶予（下の設定なら
+          # 60 秒）を超えた時点で殺される。モデルを大きくした日に突然
+          # CrashLoopBackOff になるのがこの罠である。
+          # 猶予 = initialDelaySeconds + periodSeconds × (failureThreshold - 1)
+          #      = 10 + 5 × 59 = 305 秒（8B 級のモデルに載せ替えても足りる）
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          # 準備完了。落ちても再起動はされず、Service の endpoints から外れるだけ
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # 生存。落ちるとコンテナが殺される。生成で CPU が埋まっても誤爆しないよう
+          # 猶予を長く取る（30 × 2 = 60 秒）
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # 【要点】メモリは「重み ＋ KVキャッシュ ＋ 実行時の上乗せ」で見積もる。
+          # KVキャッシュを忘れると、コンテキストを伸ばした日に OOMKilled になる。
+          #   (379.4 + 24.0) × 1.20 + 256.0 = 740.1 MiB → 768Mi
+          #     379.4 MiB = qwen05b-q4_k_m.gguf のサイズ（2026-08-15 実測）
+          #      24.0 MiB = KVキャッシュ（12,288 バイト × 2048 トークン）
+          #     × 1.20   = 断片化と一時バッファの余裕（仮定）
+          #   + 256.0 MiB = プロセスと計算バッファの固定分（仮定）
+          # requests と limits を同じ値にして Guaranteed にする。差を付けると
+          # 「ノードが空いていれば使える」だけのメモリを前提にすることになる。
+          resources:
+            requests:
+              memory: "768Mi"
+              cpu: "2"
+            limits:
+              memory: "768Mi"
+              cpu: "2"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+              # 推論側は重みを読むだけ。書けるとロード中のファイルを壊せてしまう
+              readOnly: true
+          # 進行中のリクエストを落とさずに終わらせる
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 15"]
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: model-cache
+          emptyDir: {}
+        - name: model-seed
+          hostPath:
+            path: /models/gguf
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-inference
+spec:
+  selector:
+    app: llama-inference
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: llama-inference
+spec:
+  # ノードのメンテナンス時に全 Pod が同時に落ちないようにする
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: llama-inference

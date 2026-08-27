@@ -1,0 +1,137 @@
+# 重みを共有ボリューム（PVC）から読む方式。セッション7の3方式のうち「ボリューム」。
+# 初期化コンテナ方式（inference-deployment.yaml）との違いは3か所しかない。
+#   ① initContainers が消える（誰も置かない。すでに置いてある）
+#   ② volumes が emptyDir から persistentVolumeClaim になる
+#   ③ startupProbe の猶予を短くできる（重みを運ぶ時間が起動から消えるため）
+#
+# 検証（クラスタも kubectl も要らない）:
+#   docker compose exec app python src/session08/lint_manifest.py --explain k8s/inference-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-weights
+spec:
+  # ReadOnlyMany は「複数ノードから同時に読み取りでマウントさせてほしい」という要求。
+  # 実際に通るかはストレージの実装次第（ファイルストレージ系は可、ブロック
+  # ストレージ系は不可のことが多い）。ReadWriteOnce にすると、レプリカを増やしても
+  # 同じノードに固まる（＝ノードが落ちたら全滅する）。
+  accessModes: ["ReadOnlyMany"]
+  resources:
+    requests:
+      storage: 2Gi
+  # storageClassName は環境ごとに違うので指定しない（既定のクラスに任せる）
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-inference-pvc
+  labels:
+    app: llama-inference-pvc
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: llama-inference-pvc
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: llama-inference-pvc
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: llama
+          image: ghcr.io/ggml-org/llama.cpp:full
+          args:
+            - --server
+            - -m
+            - /models/qwen05b-q4_k_m.gguf
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+            - -c
+            - "2048"
+            - -np
+            - "2"
+            - -t
+            - "2"
+            - --metrics
+            - --slots
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # 重みはすでにボリュームにあるので、起動から「重みの取得」が消える。
+          # 猶予 = 5 + 5 × 23 = 120 秒（初期化コンテナ方式の 305 秒より短くできる）。
+          # 短いほうが「起動に失敗した Pod を早く諦める」という点で有利である。
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # 内訳は inference-deployment.yaml と同じ（同じモデル・同じ -c なので）
+          #   (379.4 + 24.0) × 1.20 + 256.0 = 740.1 MiB → 768Mi
+          resources:
+            requests:
+              memory: "768Mi"
+              cpu: "2"
+            limits:
+              memory: "768Mi"
+              cpu: "2"
+          volumeMounts:
+            - name: model-weights
+              mountPath: /models
+              # 読むだけ。ReadOnlyMany のボリュームには書けないので、
+              # ここを外すと「書けるつもり」のコードが実行時に失敗する
+              readOnly: true
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 15"]
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: model-weights
+          persistentVolumeClaim:
+            claimName: model-weights
+            readOnly: true
+      # 重みをボリュームに置く仕事はここには無い。別の Job が書き込み可で
+      # マウントして配置する（あるいはストレージ側でスナップショットから作る）。
+      # 推論の Pod を「書ける」状態にしないのがこの方式の要点である。
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: llama-inference-pvc
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: llama-inference-pvc

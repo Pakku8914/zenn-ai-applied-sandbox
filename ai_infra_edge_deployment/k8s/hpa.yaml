@@ -1,0 +1,91 @@
+# セッション9で読む・書くマニフェスト。「何を見て増やすか」だけを書いてある。
+# 対象は inference-deployment.yaml の Deployment/llama-inference。
+#
+# 検証（クラスタも kubectl も要らない。Deployment も一緒に渡すこと）:
+#   docker compose exec app python src/session09/lint_hpa.py --plan --explain \
+#     k8s/hpa.yaml k8s/inference-deployment.yaml
+#
+# このファイルの数字はすべて src/session09/scaling.py の計算から出している。
+#   docker compose exec app python src/session09/plan.py
+# 前提（ピークの rps・立ち上がりの傾き・SLO・重みのサイズ）を変えたら、
+# 手で直す前に必ず plan.py を回し直し、lint_hpa.py --plan で突き合わせること。
+#
+# lint の結果は、Deployment と一緒に検査すれば「エラー 0 件 / 警告 0 件」になる。
+# HPA 単独で検査すると target-unverified の警告が1件出る（対象が実在するかを
+# 確かめられないため）。これは「Deployment も一緒に渡せ」という指摘である。
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: llama-inference
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: llama-inference
+  # 【要点】minReplicas を 0 にしない。
+  # スケールの遅れ（発火 30.0 秒 ＋ 供給 26.6 秒 = 56.6 秒）をまるごと
+  # 最初の利用者に払わせることになる。TTFT の SLO 1,000ms の 56.6 倍である。
+  #   minReplicas = max(2, 平常 1 本 + 立ち上がりの吸収 2 本) = 3
+  #     平常 0.50 rps ÷ 0.79 rps = 0.63 → 1 本
+  #     立ち上がり 0.02 rps/s × 56.6 秒 = 1.13 rps ÷ 0.79 = 1.43 → 2 本
+  #     下限 2 本（更新中とノード入れ替え中に受け皿を空にしない・セッション8）
+  minReplicas: 3
+  # ピーク 5.00 rps ÷ 0.79 rps = 6.32 → 7 本。その 1.7 倍を上限にする。
+  # 上限を決めるのはクラスタの空き容量とレジストリ帯域（一斉起動で帯域が枯れる・
+  # セッション7）。無制限にすると、増えた Pod が Pending のまま並ぶだけになる。
+  maxReplicas: 12
+  metrics:
+    # 【要点】CPU 使用率を使わない。デコードはメモリ帯域律速なので、待ち行列が
+    # 伸びていても使用率は上がりきらないことがある（逆にプリフィル中は張り付く）。
+    # 実測でも、並列2（TTFT p95 100ms）と並列4（同 2,064ms）はスループットが
+    # 53.0 と 53.9 tok/s、TPOT が 36.74 と 36.15 ms でほとんど同じ。
+    # つまり CPU 使用率ではこの2つを区別できない。区別できるのはキュー長である。
+    #
+    # しきい値 1 件/本の根拠：飽和点は並列4。スロットは2本なので、飽和時の
+    # キュー長は 4 − 2 = 2 件。飽和してから発火しては遅いので、その半分に置く。
+    #
+    # 指標の名前は、推論サーバの /metrics から自分で公開する名前である
+    # （llama.cpp の項目名は変わりやすい。配線は次章で扱う）。
+    - type: Pods
+      pods:
+        metric:
+          name: inference_queue_length
+        target:
+          # Pods 指標は AverageValue（1本あたりの平均）でしか書けない
+          type: AverageValue
+          averageValue: "1"
+    # キューを外部（ゲートウェイ側）で持つなら External にする。KEDA を使う場合も
+    # 最終的にはこの形の HPA が生成される。
+    # - type: External
+    #   external:
+    #     metric:
+    #       name: gateway_queue_length
+    #       selector:
+    #         matchLabels: { service: llama-inference }
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "1"
+  behavior:
+    # 【要点】入るのは早く、出るのは遅く。非対称にするのは、増やし直しの代償
+    # （コールドスタート 56.6 秒）が減らしすぎの代償より大きいからである。
+    scaleUp:
+      # 立ち上がりを待たない。ここに入れた秒数はまるごと発火の遅れに足される
+      stabilizationWindowSeconds: 0
+      policies:
+        # 1分に4本まで。一斉に起動すると重みの取得で帯域が枯れる（セッション7）
+        - type: Pods
+          value: 4
+          periodSeconds: 60
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      # 10 分間は減らさない。減らした直後に足りなくなると、起動を待つあいだ
+      # 利用者が待たされる（フラッピングの代償は非対称である）
+      stabilizationWindowSeconds: 600
+      policies:
+        # 2分に1本ずつ。進行中の生成は preStop と猶予で守られる（セッション8）
+        - type: Pods
+          value: 1
+          periodSeconds: 120

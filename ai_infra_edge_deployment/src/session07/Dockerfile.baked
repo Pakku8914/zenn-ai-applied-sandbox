@@ -1,0 +1,30 @@
+# セッション7：重みをイメージに焼く構成（方式①）
+#
+#   docker build -f src/session07/Dockerfile.baked \
+#       --build-arg MODEL_FILE=qwen05b-q4_k_m.gguf \
+#       -t minato-infer:0.1.0-q4_k_m .
+#   docker images minato-infer          # サイズを見る（これが本章の題材）
+#
+# 使いどころ：オフラインに配る／再現性を最優先する／重みが小さく更新もめったにない。
+# 使ってはいけないところ：ノードが増減し、モデルを頻繁に差し替える運用。
+#
+# 注意：`:full` は動くタグである（同じ名前で中身が更新される）。本当に固定したい
+# ならダイジェスト（`@sha256:...`）で参照する。
+FROM ghcr.io/ggml-org/llama.cpp:full
+
+# 重みは最後に COPY する。一番大きく、一番よく変わる層をできるだけ下に置く
+ARG MODEL_FILE=qwen05b-q4_k_m.gguf
+COPY models/gguf/${MODEL_FILE} /opt/models/${MODEL_FILE}
+
+ENV MODEL_PATH=/opt/models/${MODEL_FILE}
+
+# root では動かさない。重みは読むだけなので書き込み権限は要らない
+# （権限で動かない場合はこの行を外して、何が root を要求しているのか確かめる）
+USER 10001
+
+EXPOSE 8080
+
+# ボリュームもモデルの指定も要らない。これがこの方式の唯一の強みである
+CMD ["--server", "-m", "/opt/models/qwen05b-q4_k_m.gguf", \
+     "--host", "0.0.0.0", "--port", "8080", \
+     "-c", "2048", "-np", "2", "-t", "2", "--metrics", "--slots"]

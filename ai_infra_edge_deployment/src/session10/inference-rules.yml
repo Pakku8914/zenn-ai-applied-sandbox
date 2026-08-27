@@ -1,0 +1,57 @@
+# セッション10：派生値（recording）と、呼び出す価値のあるアラート。
+#
+# 設計の約束（verify.py が静的に検査する）:
+#   1. すべてのアラートに `for` を付ける（推論のキュー長は秒単位で上下する）
+#   2. しきい値は容量計画から引く（キュー長 1 件 = 飽和時 2 件の半分）
+#   3. 平均（_sum / _count）でアラートを鳴らさない。分位点で鳴らす
+#   4. 欠測（absent）そのものをアラートにする。0 で埋めない設計と対になる
+#   5. CPU 使用率でアラートを鳴らさない（推論の飽和と相関しない）
+#
+# 注意：inference_ttft_seconds_bucket は**ゲートウェイ側で公開するヒストグラム**で、
+# 本書のゲートウェイはまだ公開していない。形は
+# src/session10/inference_metrics.py の LatencyHistogram.render() で確かめられる。
+groups:
+  - name: inference-recording
+    interval: 15s
+    rules:
+      # スロット使用率は上流に無いことがあるので自分で作る。分母は -np の値（台数ではない）
+      - record: inference_slot_utilization
+        expr: inference_active_requests / 2
+
+  - name: inference-alerts
+    rules:
+      - alert: InferenceQueueBacklog
+        expr: avg(inference_queue_length) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "キュー長がしきい値を超えて滞留しています"
+          description: "1インスタンスあたり平均キュー長が 1 件を 2 分超えました。供給が足りていません。"
+
+      - alert: InferenceMetricsMissing
+        expr: absent(inference_queue_length)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "キュー長が届いていません（配線かアダプタの故障）"
+          description: "指標が来ていない状態は、指標が良好な状態とは違います。0 で埋めずにここで気づきます。"
+
+      - alert: InferenceTtftSloBurn
+        expr: histogram_quantile(0.95, sum by (le) (rate(inference_ttft_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TTFT p95 が SLO 1,000ms を超えています"
+          description: "SLO は期間の約束なので 10 分継続で呼び出します。平均では鳴りません。"
+
+      - alert: InferenceErrorRate
+        expr: rate(inference_gateway_errors_total[5m]) / rate(inference_gateway_requests_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "上流エラー率が 1% を超えています"
+          description: "429 と 503 は別カウンタです（断っているのか壊れているのかを混ぜない）。"

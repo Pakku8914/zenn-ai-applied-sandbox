@@ -1,0 +1,157 @@
+# 【概念のみ・このサンドボックスでは動かさない】GPU をスケジュールするマニフェスト。
+#
+# CPU だけの環境では nvidia.com/gpu を要求した Pod は Pending のまま止まる
+# （device plugin が居ないので、そのリソースを持つノードが1つも無い）。
+# それでも静的検査は同じように通せる。クラスタも GPU も要らない:
+#   docker compose exec app python src/session08/lint_manifest.py --explain k8s/gpu-inference.yaml
+#
+# 【重要】GPU のメモリ（VRAM）は Kubernetes がスケジュールしない。
+# nvidia.com/gpu: 1 は「1枚」であって「何GiB」ではない。したがって
+# 「重み ＋ KVキャッシュ ＋ 上乗せ」の見積りは requests.memory（ホストの RAM）
+# ではなく、載せる GPU の VRAM に収まるかの検算に使う。8B 級・-c 8192 の例:
+#   budget_for_8b(4700, 8192) = (4700.0 + 1024.0) × 1.20 + 256.0
+#                             = 7124.8 MiB → 7168Mi（約 7.0 GiB の VRAM）
+#     4700 MiB   = 重みのサイズ（**仮定**。本書は 8B を動かしていないので実測が無い）
+#     1024.0 MiB = KVキャッシュ（131,072 バイト × 8192 トークン。セッション3の式）
+# -c を 32768 に伸ばすと KVキャッシュだけで 4096 MiB になり、合計は 10,811.2 MiB
+# （→ 10816Mi）に増える。**VRAM が足りるかは人間が確かめるしかない。**
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-weights-8b
+spec:
+  accessModes: ["ReadOnlyMany"]
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-inference-gpu
+  labels:
+    app: llama-inference-gpu
+spec:
+  # GPU は分け合えないので、レプリカ数ぶんの GPU が必要になる（2 レプリカ = 2枚）
+  replicas: 2
+  selector:
+    matchLabels:
+      app: llama-inference-gpu
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # maxSurge: 1 は「更新中に GPU が1枚余分に要る」という意味でもある。
+      # 空きが無いと新しい Pod は Pending のまま、古い Pod は落ちない（＝進まない）
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: llama-inference-gpu
+    spec:
+      # GPU ノードには汎用の Pod を寄せ付けないための taint が付いていることが多い。
+      # toleration が無いと Pending のまま止まる。ラベル名・taint 名は device plugin と
+      # Node Feature Discovery の入れ方で変わるので、自分のクラスタで確認する。
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      # クラスタによっては runtimeClassName: nvidia が必要になる（コンテナランタイム
+      # 側の設定次第）。要るかどうかは device plugin の導入手順に書かれている。
+      containers:
+        - name: llama
+          # CUDA 版のイメージ。CPU のノードでは起動しない
+          image: ghcr.io/ggml-org/llama.cpp:full-cuda
+          args:
+            - --server
+            - -m
+            - /models/llama3-8b-instruct-q4.gguf
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+            - -c
+            - "8192"
+            - -np
+            - "4"
+            - -t
+            - "4"
+            # 全層を GPU に載せる。1層でも CPU に残るとそこが律速になる
+            - -ngl
+            - "99"
+            - --metrics
+            - --slots
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # 大きいモデルはロードに分単位かかる。猶予 = 15 + 10 × 59 = 605 秒
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # liveness は「プロセスが応答できる状態か」だけを聞く。ここでは TCP に
+          # して、readiness（/health）と役割をはっきり分けている。TCP は listen して
+          # いれば通るので、ハングの検出力は落ちる。**分けたいのか、検出したいのか**
+          # で選ぶ（本書の CPU 版マニフェストは /health を長い猶予で使っている）
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              # ここはホストの RAM。重みと KVキャッシュは VRAM に載るので、
+              # 上のコメントで計算した 7168Mi をここに書くのは誤りである
+              memory: "2Gi"
+              cpu: "4"
+            limits:
+              memory: "2Gi"
+              cpu: "4"
+              # 【要点】GPU は limits に書く（requests は自動的に同じ値になる）。
+              # 1個単位でしか要求できず、0.5 のような書き方はできない。1枚を
+              # 分けたいなら MIG か time-slicing を device plugin 側で設定する。
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: model-weights
+              mountPath: /models
+              readOnly: true
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 30"]
+      # preStop 30 秒 ＋ 生成の最長 ＋ 余裕。生成上限を 2048 トークンで見積もると
+      # 30 + 39.5 + 5 = 74.5 秒。90 秒なら足りる（--max-tokens 2048 で検算できる）
+      terminationGracePeriodSeconds: 90
+      volumes:
+        - name: model-weights
+          persistentVolumeClaim:
+            claimName: model-weights-8b
+            readOnly: true
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: llama-inference-gpu
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: llama-inference-gpu

@@ -1,0 +1,46 @@
+# アンチパターン集（セッション9）。**わざと壊してある。真似しないこと。**
+#
+# 検査（Deployment も一緒に渡す。渡さないと対象の実在を確かめられない）:
+#   docker compose exec app python src/session09/lint_hpa.py --plan \
+#     src/session09/bad-hpa.yaml k8s/inference-deployment.yaml
+#
+# 期待される結果: エラー 5 件 / 警告 5 件。
+# 「なんとなく危ない」ではなく、どの数字とどの数字が矛盾しているのかを
+# 指摘として読めるようになるのが、この教材の狙いである。
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: llama-bad
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    # 綴りが1文字違う（llama-inference のはず）。API は通り、HPA は作られる
+    name: llama-infernce
+  # 「使っていないときは 0 にすればタダ」――利用者がコールドスタートを払う
+  minReplicas: 0
+  # ピークを数えずに決めた上限
+  maxReplicas: 3
+  metrics:
+    # 推論を CPU 使用率でスケールする。本章の中心的なアンチパターン
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 90
+  behavior:
+    scaleUp:
+      # 「増えすぎないように」5 分待つ。待っているあいだ利用者は待たされている
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 300
+    scaleDown:
+      # 減らすほうが速い。増減が振動し、そのたびに起動を待つ
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15

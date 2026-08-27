@@ -1,0 +1,43 @@
+# セッション7：重みをイメージに入れない構成（方式②ボリューム・方式③起動時取得で使う）
+#
+#   docker build -f src/session07/Dockerfile.slim -t minato-gateway:0.1.0 .
+#
+# 層の順番は「変わらないものを上、変わるものを下」。上の層が変わると、
+# それより下の層のキャッシュはすべて捨てられる。
+
+# 再現性のためタグを固定する（latest は使わない）
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    OMP_NUM_THREADS=2
+
+WORKDIR /workspace
+
+# 1. OS パッケージ（ほとんど変わらない）
+#    apt のインデックスは同じ RUN の中で消す。別の RUN で消しても層には残る
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. 依存だけを先に入れる（requirements.txt が変わらない限りこの層は再利用される）
+#    GPU 用のランタイムを引き込まないよう、CPU 専用の index を使う場合はここで指定する
+#      RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu ...
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# 3. アプリのコード（毎回変わるので一番下に置く）
+COPY infrakit/ /workspace/infrakit/
+COPY gateway/ /workspace/gateway/
+COPY tools/ /workspace/tools/
+COPY src/ /workspace/src/
+
+# 4. root では動かさない（重みもコードも書き換えられる必要はない）
+RUN useradd --create-home --uid 10001 appuser \
+    && chown -R appuser:appuser /workspace
+USER appuser
+
+# 重みはイメージに入れない。マウント（方式②）か起動時取得（方式③）で渡す
+ENV MODEL_PATH=/models/gguf/qwen05b-q4_k_m.gguf
+
+CMD ["uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]

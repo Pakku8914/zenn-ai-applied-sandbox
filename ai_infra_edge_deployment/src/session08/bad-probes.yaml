@@ -1,0 +1,90 @@
+# 【アンチパターン集】直さずに残してある教材用のマニフェスト。
+# 普通の Web アプリなら通ってしまう書き方を、推論を載せた瞬間に事故る形で並べた。
+#
+#   docker compose exec app python src/session08/lint_manifest.py src/session08/bad-probes.yaml
+#   → 「検出: エラー 8 件 / 警告 7 件」になり、終了コードは 1
+#
+# 埋めてある欠陥（本文の「アンチパターン」と対応する）:
+#   ① image が latest（ロールアウトのたびに別の中身が動きえる）
+#   ② startupProbe が無い
+#   ③ livenessProbe の猶予が 15 秒しかなく、ロード中に殺し続ける
+#   ④ readinessProbe が tcpSocket（「ポートが開いた」でしか見ていない）
+#   ⑤ maxUnavailable が既定（25%）のまま
+#   ⑥ requests / limits のメモリが KVキャッシュと上乗せを抜いている
+#   ⑦ preStop が無く、terminationGracePeriodSeconds が 5 秒
+#   ⑧ replicas が 1 で PodDisruptionBudget も無い
+#   ⑨ -t 4 が limits.cpu 2 を超えている
+#
+# 【静的検査の限界】このマニフェストにはボリュームが1つも無いので、検査は
+# 「重みはイメージに焼いてある」と解釈する（だから重みについては何も言わない）。
+# 実際にイメージに入っていなければサーバは起動しない。**書かれていない前提は
+# 検査できない。** 分かるのは「書いてあることの整合」だけである。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-bad
+  labels:
+    app: llama-bad
+spec:
+  # ⑧ 受け皿が1本しかない
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-bad
+  # ⑤ strategy を書かないと maxUnavailable は 25% になる。起動が遅い推論では、
+  #    新しい Pod が受け付ける前に古い Pod が抜けて受け皿が消える
+  template:
+    metadata:
+      labels:
+        app: llama-bad
+    spec:
+      containers:
+        - name: llama
+          # ① latest
+          image: ghcr.io/ggml-org/llama.cpp:latest
+          args:
+            - --server
+            - -m
+            - /models/qwen05b-f16.gguf
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+            - -c
+            - "4096"
+            - -np
+            - "1"
+            # ⑨ limits.cpu より多いスレッド
+            - -t
+            - "4"
+          ports:
+            - name: http
+              containerPort: 8080
+          # ② startupProbe が無いので、③ livenessProbe がロード中から数え始める。
+          #    猶予 = 5 + 5 × 2 = 15 秒。ロードが終わる前に殺され、また最初から
+          #    ロードし直す。CrashLoopBackOff から一生抜けられない
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          # ④ ポートが開いているかは「プロセスが生きているか」でしかない。
+          #    ロードが終わっていない Pod に振り分けられ、最初の数十リクエストが
+          #    タイムアウトする
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+          # ⑥ f16 の重み（948.1 MiB）だけを見て 1Gi にしている。KVキャッシュ
+          #    （-c 4096 なら 48.0 MiB）と実行時の上乗せが入っていない
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "1"
+            limits:
+              memory: "1Gi"
+              cpu: "2"
+      # ⑦ preStop が無く、猶予も 5 秒。生成中のリクエストは SIGKILL で切られる
+      terminationGracePeriodSeconds: 5

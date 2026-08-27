@@ -1,0 +1,6 @@
+# 生成物のみ追跡しない（生成器 tools/ と infrakit/ gateway/ k8s/ src/ は追跡する）
+models/
+reports/
+__pycache__/
+*.pyc
+.env

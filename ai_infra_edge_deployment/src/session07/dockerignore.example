@@ -1,0 +1,20 @@
+# セッション7：ビルドコンテキストに送らないもの
+#
+# 使い方（サンドボックスの直下に `.dockerignore` として置く）:
+#   Mac / Linux : cp src/session07/dockerignore.example .dockerignore
+#   Windows     : Copy-Item src\session07\dockerignore.example .dockerignore
+#
+# COPY していないものでも、コンテキストに入っていれば毎回ビルドに送られる。
+# models/ を除外しないと、ビルドのたびに数GBを送ることになる。
+
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+.pytest_cache
+reports
+models
+
+# 方式①（重みをイメージに焼く）でビルドするときだけ、使う1本を送り返す。
+# 行の順番が意味を持つ（後に書いたほうが勝つ）。
+# !models/gguf/qwen05b-q4_k_m.gguf

@@ -1,0 +1,17 @@
+# セッション10：Prometheus に本章の設定を読ませる上書きファイル（任意・起動しなくてよい）。
+#
+# 既定の docker-compose.yml は ./prometheus.yml を読む。ここでは同じ場所に
+# 本章の設定（項目名の翻訳つき）とルールファイルを重ねる。マウントは
+# コンテナ側のパスで一致させているので、既定の prometheus.yml は置き換わる。
+#
+#   docker compose -f docker-compose.yml -f src/session10/compose.metrics.yml \
+#     --profile metrics up -d prometheus
+#   # http://localhost:9090 の Graph 画面で inference_queue_length を見る
+#   docker compose --profile metrics down prometheus
+#
+# 相対パスはプロジェクトディレクトリ（最初の -f のあるディレクトリ）から解決される。
+services:
+  prometheus:
+    volumes:
+      - ./src/session10/prometheus-inference.yml:/etc/prometheus/prometheus.yml:ro
+      - ./src/session10/inference-rules.yml:/etc/prometheus/inference-rules.yml:ro

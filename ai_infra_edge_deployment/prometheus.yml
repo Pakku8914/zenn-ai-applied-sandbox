@@ -1,0 +1,14 @@
+# セッション10で使う。推論サーバとゲートウェイのメトリクスを取り込む
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # llama.cpp は --metrics を付けると /metrics を公開する
+  - job_name: llama
+    static_configs:
+      - targets: ["llama:8080"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

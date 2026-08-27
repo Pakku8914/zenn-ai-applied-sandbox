@@ -1,0 +1,46 @@
+# セッション10：推論サーバのメトリクスを「本書の名前」に直して取り込む設定。
+#
+# **上流の項目名を信じない。** llama.cpp の /metrics の項目名は版によって変わる。
+# ダッシュボード・アラート・HPA には本書の名前（inference_*）だけを見せ、
+# 上流の名前はこのファイルの metric_relabel_configs で吸収する。
+# 名前が変わったときに直すのは regex の1行だけである。
+#
+# 既定の compose では ./prometheus.yml が読まれる。この設定を読ませるには
+# 上書きファイルを重ねる（Prometheus は任意起動。既定では動いていない）:
+#
+#   docker compose -f docker-compose.yml -f src/session10/compose.metrics.yml \
+#     --profile metrics up -d prometheus
+#   docker compose --profile metrics down prometheus
+#
+# 本章の検証（src/session10/verify.py）は Prometheus を起動せず、このファイルを
+# PyYAML で静的に読んで「必要な名前がすべて翻訳されているか」だけを確かめる。
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+
+# 派生値（スロット使用率）とアラートはルールファイル側に置く
+rule_files:
+  - /etc/prometheus/inference-rules.yml
+
+scrape_configs:
+  - job_name: llama
+    static_configs:
+      - targets: ["llama:8080"]
+    metric_relabel_configs:
+      # 上流の名前 → 本書の名前。candidates が増えたら regex に | で足す
+      - source_labels: [__name__]
+        regex: "llamacpp:requests_processing"
+        target_label: __name__
+        replacement: inference_active_requests
+      - source_labels: [__name__]
+        regex: "llamacpp:requests_deferred"
+        target_label: __name__
+        replacement: inference_queue_length
+      - source_labels: [__name__]
+        regex: "llamacpp:kv_cache_usage_ratio"
+        target_label: __name__
+        replacement: inference_kv_cache_ratio
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

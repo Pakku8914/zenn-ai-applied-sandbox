@@ -1,0 +1,30 @@
+# kind でクラスタを立てる場合の設定（任意）。
+#
+# 【この教材の検証はこのファイルを使わない。】2コア・メモリ 5.8GB の環境では
+# クラスタが起動しないことを確認している。マニフェストの検査は
+# src/session08/lint_manifest.py（クラスタ不要）で完結するようにしてある。
+#
+# 余裕のあるマシン（目安 4コア・メモリ 8GB 以上）で試す場合は、**ホスト側**に
+# kind を入れて実行する（kind はホストの Docker にノードのコンテナを作るため、
+# サンドボックスのコンテナの中からは使えない）。
+#
+#   Mac:      brew install kind kubernetes-cli
+#   Windows:  winget install Kubernetes.kind ; winget install Kubernetes.kubectl
+#
+#   kind create cluster --name ai-infra --config k8s/kind-cluster.yaml
+#   kubectl apply -f k8s/inference-deployment.yaml
+#   kubectl get pods -w              # startupProbe が通るまで READY 0/1 のままになる
+#   kind delete cluster --name ai-infra
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraMounts:
+      # 初期化コンテナが重みを取る先（hostPath）。ノードのコンテナの中に、
+      # ホストの models/gguf を読み取りでマウントする。
+      # hostPath は**絶対パス**で書く（自分の環境のパスに置き換えること）。
+      #   Mac:     /Users/you/zenn-ai-applied-sandbox/ai_infra_edge_deployment/sandbox/models/gguf
+      #   Windows: /c/Users/you/zenn-ai-applied-sandbox/ai_infra_edge_deployment/sandbox/models/gguf
+      - hostPath: /absolute/path/to/sandbox/models/gguf
+        containerPath: /models/gguf
+        readOnly: true

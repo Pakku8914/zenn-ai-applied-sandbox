@@ -1,0 +1,10 @@
+# 生成物・実行時の産物のみ追跡しない（生成器 tools/ と agentkit/ runner/ src/ は追跡する）
+data/
+traces/
+runner_queue/
+fixtures/
+workspace/*
+!workspace/.gitkeep
+__pycache__/
+*.pyc
+.env

@@ -1,0 +1,9 @@
+# 隔離実行用。依存を1つも入れないのが要点（攻撃に使える道具を置かない）
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /runner
+
+CMD ["python", "worker.py"]

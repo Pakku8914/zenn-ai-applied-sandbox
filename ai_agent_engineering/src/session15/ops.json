@@ -1,0 +1,11 @@
+{
+  "workers": 2,
+  "rate_limit_per_second": 2,
+  "rate_mode": "queue",
+  "max_steps_per_job": 8,
+  "redelivery_seconds": 1,
+  "canary_percents": [5, 25, 100],
+  "canary_strategy": "head",
+  "min_success_rate": 0.98,
+  "max_step_ratio": 1.2
+}

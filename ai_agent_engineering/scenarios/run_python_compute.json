@@ -1,0 +1,25 @@
+{
+  "name": "run_python_compute",
+  "description": "隔離環境でコードを実行して集計する（セッション9の正常系）",
+  "turns": [
+    {
+      "thought": "経費の一覧を取得する。",
+      "calls": [{ "name": "list_expenses", "args": { "status": "all" } }]
+    },
+    {
+      "thought": "合計金額を計算する。手計算より確実なのでコードを書く。",
+      "calls": [
+        {
+          "name": "run_python",
+          "args": {
+            "code": "amounts = [3200, 68000, 12800, 145000, 4400, 52000]\nprint('合計:', sum(amounts))\nprint('件数:', len(amounts))"
+          }
+        }
+      ]
+    },
+    {
+      "thought": "計算できたので報告する。",
+      "final": "経費申請6件の合計は285,400円です。"
+    }
+  ]
+}

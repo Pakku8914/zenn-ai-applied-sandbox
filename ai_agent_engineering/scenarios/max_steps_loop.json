@@ -1,0 +1,12 @@
+{
+  "name": "max_steps_loop",
+  "description": "同じ検索を繰り返して上限に達する軌跡（停止条件と循環検出の題材）",
+  "turns": [
+    { "thought": "規程を探す。", "calls": [{ "name": "search_docs", "args": { "query": "経費" } }] },
+    { "thought": "もう一度探す。", "calls": [{ "name": "search_docs", "args": { "query": "経費" } }] },
+    { "thought": "もう一度探す。", "calls": [{ "name": "search_docs", "args": { "query": "経費" } }] },
+    { "thought": "もう一度探す。", "calls": [{ "name": "search_docs", "args": { "query": "経費" } }] },
+    { "thought": "もう一度探す。", "calls": [{ "name": "search_docs", "args": { "query": "経費" } }] },
+    { "thought": "もう一度探す。", "calls": [{ "name": "search_docs", "args": { "query": "経費" } }] }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "book_room_conflict",
+  "description": "会議室の予約が競合し、エラーメッセージを読んで別の時間帯に切り替える",
+  "turns": [
+    {
+      "thought": "10時からみなと会議室を予約する。",
+      "calls": [{ "name": "book_room", "args": { "room": "みなと", "start": "10:00", "minutes": 60 } }]
+    },
+    {
+      "thought": "競合していたので、エラーメッセージに従って11時に変更する。",
+      "calls": [{ "name": "book_room", "args": { "room": "みなと", "start": "11:00", "minutes": 60 } }]
+    },
+    {
+      "thought": "予約できたので報告する。",
+      "final": "みなと会議室を11:00から60分で予約しました。10:00は既に予約済みだったため変更しています。"
+    }
+  ]
+}

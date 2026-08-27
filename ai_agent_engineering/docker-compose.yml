@@ -1,0 +1,49 @@
+# 他の教材の sandbox とコンテナ名が衝突しないようプロジェクト名を明示する
+name: agent-eng-sandbox
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      # ローカルのコードをコンテナにマウント（編集が即反映される）
+      - .:/workspace
+    environment:
+      # APIキーは「あれば渡す」。無くても全演習が動く（決定的なオラクルで回る）
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - PYTHONUNBUFFERED=1
+      - RUNNER_QUEUE=/workspace/runner_queue
+    command: sleep infinity
+    tty: true
+
+  # セッション9で使う「エージェントが書いたコードを動かす場所」。
+  # ネットワークを完全に切り、資源に上限を掛け、書き込める場所を絞っている。
+  # app からは共有ボリューム経由でしか依頼できない（ネットワークが無いため）。
+  tool-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    working_dir: /runner
+    # ネットワーク名前空間を持たない＝外部へ一切通信できない
+    network_mode: none
+    # ルートファイルシステムを読み取り専用にする。
+    # これが無いと /etc/passwd などに書き込めてしまう（検証ハーネスで実際に検出した）
+    read_only: true
+    tmpfs:
+      # Python が一時ファイルを作れる場所だけを許可する（実行は禁止）
+      - /tmp:rw,noexec,nosuid,size=16m
+    volumes:
+      - ./runner:/runner:ro
+      - ./runner_queue:/queue
+      - ./workspace:/work
+    # 資源の上限。超えたら OOM で殺される
+    mem_limit: 256m
+    pids_limit: 64
+    cpus: 1.0
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    command: python worker.py
+    restart: unless-stopped

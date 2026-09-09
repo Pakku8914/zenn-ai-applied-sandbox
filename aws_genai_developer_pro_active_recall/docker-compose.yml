@@ -1,0 +1,105 @@
+# 他の教材の sandbox とコンテナ名が衝突しないようプロジェクト名を明示する
+# （省略するとプロジェクト名がディレクトリ名 "sandbox" になり、他書籍のコンテナを作り直してしまう）
+name: aip-c01-sandbox
+
+services:
+  # 課金ゼロの Amazon Bedrock 互換エンドポイント。
+  # boto3 の endpoint_url をここに向けると、実 AWS と同じ形の API が返る
+  bedrock-mock:
+    build: .
+    working_dir: /workspace
+    command: uvicorn bedrock_mock.app:app --host 0.0.0.0 --port 8080 --workers 1
+    volumes:
+      # ローカルの編集が即反映される（モックの挙動を自分で拡張する演習がある）
+      - .:/workspace
+    ports:
+      # ホストのブラウザから http://localhost:18080/docs で API 一覧を見られる
+      - "${BEDROCK_MOCK_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/_mock/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # S3 / DynamoDB / SQS / SNS / IAM / Step Functions などを課金ゼロで動かす
+  localstack:
+    image: localstack/localstack:4.9
+    environment:
+      - SERVICES=s3,dynamodb,sqs,sns,iam,sts,logs,cloudwatch,events,stepfunctions,secretsmanager,ssm
+      - DEBUG=0
+      - PERSISTENCE=0
+    ports:
+      - "${LOCALSTACK_PORT:-14566}:4566"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # ベクトルストアの実体。Aurora PostgreSQL + pgvector の代替として使う
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      - POSTGRES_DB=genai
+      - POSTGRES_USER=genai
+      # 既定値はローカル専用のダミー。実運用では必ず Secrets Manager から渡す
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sandbox}
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-15432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genai -d genai"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ハイブリッド検索（キーワード + ベクトル）の章でのみ使う。既定では起動しない
+  #   起動: docker compose --profile search up -d
+  opensearch:
+    image: opensearchproject/opensearch:2.19.1
+    profiles: [search]
+    environment:
+      - discovery.type=single-node
+      # 2 vCPU / 4GB の Docker VM でも動くようヒープを絞る
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    ports:
+      - "${OPENSEARCH_PORT:-19200}:9200"
+
+  # 演習コードを実行するコンテナ。Web サーバーではないので待機させて exec で使う
+  app:
+    build: .
+    working_dir: /workspace
+    depends_on:
+      bedrock-mock:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/workspace
+    environment:
+      - BEDROCK_ENDPOINT=http://bedrock-mock:8080
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - OPENSEARCH_URL=http://opensearch:9200
+      - PG_DSN=postgresql://genai:${POSTGRES_PASSWORD:-sandbox}@postgres:5432/genai
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      # LocalStack もモックも署名を検証しないが、boto3 は資格情報が無いと呼ぶ前に失敗する
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - PYTHONUNBUFFERED=1
+    command: sleep infinity
+    tty: true
+
+volumes:
+  pgdata:

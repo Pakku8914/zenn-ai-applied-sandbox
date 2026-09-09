@@ -1,0 +1,11 @@
+# バージョンは固定する（読者の環境と執筆時の検証環境をずらさないため）
+# 検証日: 2026-09-08 / Python 3.13-slim
+boto3==1.43.89
+botocore==1.43.89
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+psycopg[binary]==3.3.5
+pgvector==0.5.0
+opensearch-py==3.2.0
+pytest==9.1.1
+httpx==0.28.1

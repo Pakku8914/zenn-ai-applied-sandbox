@@ -1,0 +1,22 @@
+# 再現性のためバージョンを固定する（2026-08-15 時点で解決した組み合わせ）
+#
+# torch は **CPU 専用 wheel** をバージョン文字列（+cpu）まで含めて固定する。
+# 既定の PyPI から `torch==2.13.0` を入れると、CPU で使う場合でも CUDA 関連の
+# パッケージ（nvidia-*）を数GB引っ張ってくる（実測: イメージ 8.85GB 対 2.05GB）。
+# さらに torch に依存する他のパッケージ（optimum-onnx など）を後から入れると
+# CUDA 版に差し替えられてしまうため、`+cpu` を明示するのが確実。
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.13.0+cpu
+transformers==4.57.6
+peft==0.20.0
+trl==1.10.0
+datasets==5.0.1
+accelerate==1.14.0
+onnx==1.22.0
+onnxruntime==1.28.0
+optimum==2.1.0
+# optimum 2.x では ONNX Runtime 連携が別パッケージに分離された。
+# これを入れないと `from optimum.onnxruntime import ...` が ModuleNotFoundError になる
+optimum-onnx==0.1.0
+numpy==2.5.2
+pytest==9.1.1

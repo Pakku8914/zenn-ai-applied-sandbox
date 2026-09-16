@@ -1,0 +1,33 @@
+# 他の教材の sandbox とコンテナ名が衝突しないようプロジェクト名を明示する
+name: llm-ft-sandbox
+
+services:
+  app:
+    build: .
+    working_dir: /workspace
+    volumes:
+      # ローカルのコードをコンテナにマウント（編集が即反映される）
+      - .:/workspace
+      # モデルのダウンロード結果を保持する（毎回落とし直さない）
+      - hf-cache:/models
+    environment:
+      - PYTHONUNBUFFERED=1
+      # 学習の実測値を安定させるためスレッド数を固定する
+      - OMP_NUM_THREADS=2
+      - TOKENIZERS_PARALLELISM=false
+    command: sleep infinity
+    tty: true
+
+  # GGUF への変換と量子化に使う。常駐させず1回ずつ呼び出す
+  #   docker compose run --rm llamacpp --convert --outtype f16 /work/export/qwen05b
+  #   docker compose run --rm llamacpp --quantize /work/gguf/model-f16.gguf /work/gguf/model-q4_k_m.gguf Q4_K_M
+  llamacpp:
+    image: ghcr.io/ggml-org/llama.cpp:full
+    profiles: [gguf]
+    volumes:
+      - .:/work
+    # working_dir は指定しない。--convert はイメージ内の作業ディレクトリにある
+    # convert_hf_to_gguf.py を実行するため、上書きすると動かない（実際に踏んだ）
+
+volumes:
+  hf-cache:

@@ -1,0 +1,9 @@
+# 生成物のみ追跡しない（生成器 tools/ と ftkit/ src/ は追跡する）
+data/
+runs/
+export/
+gguf/
+onnx/
+__pycache__/
+*.pyc
+.env

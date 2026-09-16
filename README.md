@@ -1,8 +1,8 @@
 # zenn-ai-applied-sandbox
 
-Zenn で公開している **AI 応用シリーズ**および **AWS 生成AI 資格教材**の演習環境（サンドボックス）をまとめたリポジトリです。書籍ごとにサブディレクトリが分かれています。
+Zenn で公開している書籍（[Pakku8914 の本](https://zenn.dev/pakku8914)）の演習環境（サンドボックス）をまとめたリポジトリです。書籍ごとにサブディレクトリが分かれています。
 
-各サンドボックスは Docker だけで動き、**APIキーも課金も不要**です（生成側は合成カセットの再生、または API 互換のローカルモックで動きます）。
+各サンドボックスは Docker だけで動きます。AI 応用シリーズと AWS 生成AI 資格教材は **APIキーも課金も不要**です（生成側は合成カセットの再生、または API 互換のローカルモックで動きます）。
 
 ## 収録している書籍
 
@@ -12,6 +12,7 @@ Zenn で公開している **AI 応用シリーズ**および **AWS 生成AI 資
 | [`ai_agent_engineering/`](./ai_agent_engineering) | 手を動かして学ぶ AIエージェント実装実践 ― 計画・ツール編成・メモリ・マルチエージェントを「壊れない形」で作る |
 | [`ai_infra_edge_deployment/`](./ai_infra_edge_deployment) | 手を動かして学ぶ AI推論基盤とエッジAI ― サービング・KVキャッシュ・オートスケールからオンデバイス実行まで |
 | [`aws_genai_developer_pro_active_recall/`](./aws_genai_developer_pro_active_recall) | AWS認定 Generative AI Developer – Professional（AIP-C01）アクティブリコール合格教材（近日公開） |
+| [`network_protocols_practical_training/`](./network_protocols_practical_training) | [手を動かして学ぶ コンピュータネットワーク実践入門 ― パケットで追う TCP/IP・HTTP・DNS・TLS の仕組み](https://zenn.dev/pakku8914/books/network_protocols_practical_training) |
 
 ※ 残り1冊（LLMファインチューニングとモデル最適化）は書籍の公開に合わせて追加します。
 
@@ -27,6 +28,8 @@ docker compose exec app bash verify-all.sh
 ```
 
 `verify-all.sh` が最後まで通れば、その書籍のコードがすべて手元で再現できている状態です。
+
+サービス名（`app` など）や検証スクリプトの有無は書籍によって異なります。各ディレクトリの `README.md` と書籍の「環境構築」章を優先してください。
 
 ## コーパスなどのデータについて
 

@@ -1,0 +1,23 @@
+# CoreDNS 設定ファイル（観察ラボ用）
+#
+# 1つ目のブロック : 内部ゾーン lab.example の「権威サーバ」として振る舞う。
+#                   web.lab.example などを自分で解決して即答する。
+# 2つ目のブロック : それ以外の名前は、外部の公開リゾルバへ転送（再帰の代理）する。
+#                   これにより「自分が答えを持つ名前」と「外に問い合わせる名前」を対比できる。
+
+lab.example:53 {
+    hosts {
+        172.30.0.80 web.lab.example
+        172.30.0.53 dns.lab.example
+        fallthrough
+    }
+    log
+    errors
+}
+
+.:53 {
+    forward . 8.8.8.8 1.1.1.1
+    cache
+    log
+    errors
+}

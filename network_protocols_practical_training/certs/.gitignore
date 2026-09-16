@@ -1,0 +1,7 @@
+# certgen サービスが起動時に生成するラボ用証明書はコミットしない
+*.crt
+*.key
+*.csr
+*.srl
+*.ext
+!.gitkeep

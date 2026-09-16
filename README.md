@@ -12,9 +12,8 @@ Zenn で公開している書籍（[Pakku8914 の本](https://zenn.dev/pakku8914
 | [`ai_agent_engineering/`](./ai_agent_engineering) | 手を動かして学ぶ AIエージェント実装実践 ― 計画・ツール編成・メモリ・マルチエージェントを「壊れない形」で作る |
 | [`ai_infra_edge_deployment/`](./ai_infra_edge_deployment) | 手を動かして学ぶ AI推論基盤とエッジAI ― サービング・KVキャッシュ・オートスケールからオンデバイス実行まで |
 | [`aws_genai_developer_pro_active_recall/`](./aws_genai_developer_pro_active_recall) | AWS認定 Generative AI Developer – Professional（AIP-C01）アクティブリコール合格教材（近日公開） |
+| [`llm_finetuning_optimization/`](./llm_finetuning_optimization) | 手を動かして学ぶ LLMファインチューニングとモデル最適化 ― SFT・LoRA・DPO・量子化・蒸留をCPUだけで一巡させる（近日公開） |
 | [`network_protocols_practical_training/`](./network_protocols_practical_training) | [手を動かして学ぶ コンピュータネットワーク実践入門 ― パケットで追う TCP/IP・HTTP・DNS・TLS の仕組み](https://zenn.dev/pakku8914/books/network_protocols_practical_training) |
-
-※ 残り1冊（LLMファインチューニングとモデル最適化）は書籍の公開に合わせて追加します。
 
 ## 使い方
 
@@ -33,7 +32,7 @@ docker compose exec app bash verify-all.sh
 
 ## コーパスなどのデータについて
 
-AI 応用シリーズ（`rag_search_engineering/` `ai_agent_engineering/` `ai_infra_edge_deployment/`）では、
+AI 応用シリーズ（`rag_search_engineering/` `ai_agent_engineering/` `ai_infra_edge_deployment/` `llm_finetuning_optimization/`）では、
 `corpus/` `data/` `fixtures/` `reports/` `traces/` `models/` は**生成物なのでリポジトリに含めていません**。代わりに生成器（`tools/make_corpus.py` / `tools/make_data.py` / `tools/prepare_models.py` など）を配布しています。いずれも固定シード・固定時刻で動くため、誰が何度実行しても同じデータが得られます。
 
 `ai_infra_edge_deployment/` だけは、モデルの取得と GGUF への変換・量子化が初回に必要です（合計 2GB 弱）。手順はそのディレクトリの `README.md` と書籍の「環境構築」章にあります。

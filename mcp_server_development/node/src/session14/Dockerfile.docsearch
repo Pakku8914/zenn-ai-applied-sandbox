@@ -1,0 +1,22 @@
+# ① ビルド段：ソースをコンパイルする
+FROM node:22.23.2-bookworm-slim AS builder
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.build.json ./
+COPY src ./src
+RUN npx tsc -p tsconfig.build.json && chmod +x dist/cli.js
+
+# ② 実行段：実行時依存だけを入れる（イメージを小さく、攻撃面を狭く）
+FROM node:22.23.2-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=builder /build/dist ./dist
+
+# root で動かさない。読み取り専用サーバーに書き込み権限は不要
+USER node
+
+# 引数は実行時に渡す。ENTRYPOINT にしておくと docker run の末尾がそのまま args になる
+ENTRYPOINT ["node", "/app/dist/cli.js"]

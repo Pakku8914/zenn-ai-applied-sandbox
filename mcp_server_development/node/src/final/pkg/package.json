@@ -1,0 +1,28 @@
+{
+  "name": "workflow-requests-mcp",
+  "version": "1.0.0",
+  "description": "社内申請ワークフローを扱う OAuth 2.1 保護つき MCP サーバー（Streamable HTTP）",
+  "keywords": ["mcp", "modelcontextprotocol", "mcp-server", "oauth", "workflow", "http"],
+  "license": "MIT",
+  "author": "Your Name <you@example.com>",
+  "homepage": "https://github.com/your-org/workflow-requests-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/workflow-requests-mcp.git"
+  },
+  "bugs": { "url": "https://github.com/your-org/workflow-requests-mcp/issues" },
+  "type": "module",
+  "bin": { "workflow-requests-mcp": "dist/final/cli.js" },
+  "exports": { ".": "./dist/final/index.js" },
+  "files": ["dist/", "README.md", "LICENSE"],
+  "engines": { "node": ">=20.0.0" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/final/cli.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": { "typescript": "5.9.3" }
+}

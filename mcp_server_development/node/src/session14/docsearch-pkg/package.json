@@ -1,0 +1,49 @@
+{
+  "name": "docsearch-mcp",
+  "version": "0.1.0",
+  "description": "社内 Markdown を全文検索する読み取り専用の MCP サーバー（stdio）",
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "mcp-server",
+    "documentation",
+    "search",
+    "stdio"
+  ],
+  "license": "MIT",
+  "author": "Your Name <you@example.com>",
+  "homepage": "https://github.com/your-org/docsearch-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/docsearch-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/docsearch-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "docsearch-mcp": "dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,124 @@
+[
+  {
+    "name": "search_documents",
+    "title": "社内ドキュメントの全文検索",
+    "description": "社内ドキュメント（Markdown）を全文検索し、一致した文書への参照を返します。本文はレスポンスに含めません。中身が必要な場合は、返された docs:// の URI を resources/read で読み取ってください。検索語を空白で区切ると、すべての語を含む文書だけが対象になります（AND 検索）。検索は部分一致です。読みたい文書の場所が分かっている場合は、このツールを使わずに resources/read を使ってください。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "検索語。空白区切りで複数指定すると AND 検索になります（最大 5 語）"
+        },
+        "limit": {
+          "description": "返す件数の上限（1〜20、既定 5）",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "directory": {
+          "description": "検索対象を 1 つのディレクトリに絞る場合に指定します（例: guides）。省略すると公開ディレクトリ全体を検索します",
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "実際に検索に使った語（前後の空白を詰めたもの）"
+        },
+        "directory": {
+          "description": "絞り込みに使ったディレクトリ（絞り込まなかった場合はキーごと省略）",
+          "type": "string"
+        },
+        "totalMatched": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "一致した文書の総数（上限を適用する前）"
+        },
+        "returned": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "このレスポンスに含めた件数"
+        },
+        "truncated": {
+          "type": "boolean",
+          "description": "上限で打ち切ったか"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "公開ディレクトリからの相対パス"
+              },
+              "uri": {
+                "type": "string",
+                "description": "本文を読み取るための URI（docs://<path>）"
+              },
+              "title": {
+                "type": "string",
+                "description": "文書の見出し（1 行目の # 見出し）"
+              },
+              "score": {
+                "type": "number",
+                "description": "一致の強さ。見出しへの一致を高く重み付けしている"
+              },
+              "matchCount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "文書全体での一致回数（重み無し）"
+              },
+              "snippet": {
+                "type": "string",
+                "description": "一致した箇所の抜粋（60 文字まで）"
+              }
+            },
+            "required": [
+              "path",
+              "uri",
+              "title",
+              "score",
+              "matchCount",
+              "snippet"
+            ],
+            "additionalProperties": false
+          },
+          "description": "スコア降順・パス昇順で並べた検索結果"
+        }
+      },
+      "required": [
+        "query",
+        "totalMatched",
+        "returned",
+        "truncated",
+        "results"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  }
+]

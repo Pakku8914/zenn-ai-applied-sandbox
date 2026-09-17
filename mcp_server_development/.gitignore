@@ -1,0 +1,23 @@
+# Docker が匿名ボリュームのマウント先として作る空ディレクトリ（削除しないこと）
+node/node_modules/
+node/dist/
+node/coverage/
+python/__pycache__/
+python/**/__pycache__/
+python/.pytest_cache/
+# Docker を使わないルートで作る仮想環境
+python/.venv/
+node/.venv/
+# 演習が実行時に生成するもの（何度でも作り直せるので追跡しない）
+# - release-candidate/ は review05 の q3-make-candidate.ts が生成する
+# - dist/ は tsc、*.tgz は npm pack の成果物
+node/src/**/release-candidate/
+node/src/**/dist/
+*.tgz
+# 秘密情報（OAuth の章で扱う）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.log

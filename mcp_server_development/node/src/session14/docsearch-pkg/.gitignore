@@ -1,0 +1,4 @@
+# ビルド成果物は Git では管理しない（配布物には files で明示的に入れる）
+dist/
+# npm pack が作る tarball
+*.tgz

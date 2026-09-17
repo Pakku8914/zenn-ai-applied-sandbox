@@ -1,0 +1,4 @@
+{
+  "name": "docsearch-mcp",
+  "bin": { "docsearch-mcp": "src/cli.ts" }
+}

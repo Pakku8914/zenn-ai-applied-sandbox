@@ -1,0 +1,3 @@
+# Windows で clone しても改行が CRLF に変換されないようにする。
+# Dockerfile や シェルスクリプトに CRLF が混入すると、コンテナ内で動かなくなる。
+* text=auto eol=lf

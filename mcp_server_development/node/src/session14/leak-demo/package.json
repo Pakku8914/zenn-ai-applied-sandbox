@@ -1,0 +1,8 @@
+{
+  "name": "leak-demo",
+  "version": "0.0.0",
+  "description": "files を書かないと何が配布物に入るかを見るための実験用パッケージ",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js"
+}

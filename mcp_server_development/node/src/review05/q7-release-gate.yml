@@ -1,0 +1,57 @@
+# リリースゲートを CI に載せる（問題7-3）
+# セッション13 で書いたワークフローに追加する想定のジョブ定義です。
+name: release-gate
+
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+
+# 最小権限を明示する（既定の広い権限をそのまま使わない）
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp_server_development/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.2
+          cache: npm
+          cache-dependency-path: mcp_server_development/node/package-lock.json
+
+      # ① 依存の固定 → ② 型 → ③ テスト → ④ 配布物 → ⑤ ゲート の順に並べる。
+      #   速くて落ちやすいものを前に置くと、失敗までの待ち時間が短くなる
+      - run: npm ci
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: 単体・契約テスト
+        # 本章だけを走らせたいときは `npx vitest run src/review05` に絞る
+        run: npx vitest run
+        env:
+          # セッション13 のスナップショットテスト向け。
+          # ベースラインが無いこと自体を失敗にする（CI で黙って新規作成させない）
+          SNAPSHOT_CI: "1"
+
+      - name: 配布物の検査
+        run: |
+          npx tsx src/review05/q3-make-candidate.ts --fixed
+          npx tsx src/review05/q3-check-dist.ts src/review05/release-candidate
+
+      - name: リリースゲート
+        run: npx tsx src/review05/q7-release-gate.ts
+
+  publish:
+    # ゲートが落ちたら公開ジョブは走らない。これが「リリースを止める」の実体
+    needs: gate
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "ここで npm publish を行います（本書では実行しません）"

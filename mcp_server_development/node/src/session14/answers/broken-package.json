@@ -1,0 +1,9 @@
+  {
+    "name": "MCP Attendance Server",
+    "bin": "src/cli.ts",
+    "main": "src/index.ts",
+    "dependencies": {
+      "@modelcontextprotocol/sdk": "1.30.0",
+      "typescript": "5.9.3"
+    }
+  }

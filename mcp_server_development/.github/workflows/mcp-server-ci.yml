@@ -1,0 +1,65 @@
+name: mcp-server-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 既定の権限を読み取りだけに絞る
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # ベースラインが無いことを失敗にする（CI が黙ってスナップショットを作らないようにする）
+  SNAPSHOT_CI: "1"
+
+jobs:
+  typescript:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+    defaults:
+      run:
+        working-directory: mcp_server_development/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.2 # サンドボックスの Dockerfile と同じ版に固定する
+          cache: npm
+          cache-dependency-path: mcp_server_development/node/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run
+      - name: 配布物のビルドと検査
+        run: |
+          npx tsc -p src/final/pkg/tsconfig.build.json
+          node -e "process.exit(require('fs').existsSync('src/final/pkg/dist/final/cli.js') ? 0 : 1)"
+      - name: 配布物に検証スクリプトが混ざっていないこと
+        working-directory: mcp_server_development/node/src/final/pkg
+        run: npm pack --dry-run
+
+  python:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    defaults:
+      run:
+        working-directory: mcp_server_development/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: mcp_server_development/python/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q

@@ -1,0 +1,6 @@
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"broken-probe","version":"1.0.0"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{ 壊れています
+{"jsonrpc":"2.0","id":2,"params":{}}
+{"jsonrpc":"1.0","id":3,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":4,"method":"tools/list","params":{}}

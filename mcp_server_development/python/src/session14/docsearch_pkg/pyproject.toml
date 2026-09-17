@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "docsearch-mcp"
+description = "社内 Markdown を全文検索する読み取り専用の MCP サーバー（stdio）"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+keywords = ["mcp", "modelcontextprotocol", "mcp-server", "documentation", "search"]
+authors = [{ name = "Your Name", email = "you@example.com" }]
+# 版は src/docsearch_mcp/__init__.py の __version__ から取る（単一の真実にする）
+dynamic = ["version"]
+dependencies = ["mcp==2.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/your-org/docsearch-mcp"
+Issues = "https://github.com/your-org/docsearch-mcp/issues"
+
+# ここが npm の bin に相当する。コマンド名 = "モジュール:関数"
+[project.scripts]
+docsearch-mcp = "docsearch_mcp.cli:main"
+
+[tool.hatch.version]
+path = "src/docsearch_mcp/__init__.py"
+
+# 配布物に入れるものを明示する（npm の files に相当）
+[tool.hatch.build.targets.sdist]
+include = ["src/docsearch_mcp", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/docsearch_mcp"]

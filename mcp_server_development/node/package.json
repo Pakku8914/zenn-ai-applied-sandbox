@@ -1,0 +1,27 @@
+{
+  "name": "mcp-sandbox-node",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP サーバー開発 動作確認用サンドボックス（TypeScript）",
+  "scripts": {
+    "server": "tsx src/server.ts",
+    "smoke": "tsx src/smoke.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "inspect": "mcp-inspector --cli npx tsx src/server.ts --method tools/list"
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "4.1.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "2.0.0",
+    "@types/node": "22.20.1",
+    "tsx": "4.23.7",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

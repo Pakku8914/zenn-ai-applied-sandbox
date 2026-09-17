@@ -1,0 +1,33 @@
+{
+  "name": "attendance-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "社内の勤怠データを読み取る読み取り専用の MCP サーバー（stdio）",
+  "keywords": ["mcp", "modelcontextprotocol", "mcp-server", "attendance"],
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.internal.example/your-org/attendance-mcp.git"
+  },
+  "type": "module",
+  "bin": {
+    "attendance-mcp": "dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": ["dist/", "README.md", "LICENSE"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

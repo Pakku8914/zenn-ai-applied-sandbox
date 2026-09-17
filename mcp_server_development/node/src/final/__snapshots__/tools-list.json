@@ -1,0 +1,484 @@
+[
+  {
+    "name": "search_requests",
+    "title": "申請を探す",
+    "description": "申請を条件で絞り込み、要約の一覧を返します（本文は返しません）。ID が既に分かっているときは get_request を使ってください。全件を走査するため、進捗通知とキャンセルに対応しています。結果が多いときは nextCursor を cursor に渡して続きを取得します。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "題名と本文に対する部分一致の検索語",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "status": {
+          "description": "状態で絞り込む（複数指定可）。省略するとすべての状態が対象です",
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved",
+              "rejected"
+            ]
+          }
+        },
+        "category": {
+          "description": "申請区分。この 4 種類以外は存在しません",
+          "type": "string",
+          "enum": [
+            "expense",
+            "purchase",
+            "leave",
+            "travel"
+          ]
+        },
+        "applicantId": {
+          "description": "申請者のユーザー ID（u-001 の形式）",
+          "type": "string",
+          "pattern": "^u-\\d{3}$"
+        },
+        "minAmountYen": {
+          "description": "金額の下限（円）。この額以上だけを返します",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "limit": {
+          "default": 10,
+          "description": "返す件数（1〜50、既定は 10）",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "cursor": {
+          "description": "前回の結果の nextCursor をそのまま渡します",
+          "type": "string"
+        },
+        "scanDelayMs": {
+          "default": 0,
+          "description": "1 かたまりあたりの疑似待ち時間（ミリ秒）。学習用の擬似負荷です",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 200
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "条件に一致した総件数"
+        },
+        "returned": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "このレスポンスに含まれる件数"
+        },
+        "hasMore": {
+          "type": "boolean",
+          "description": "続きがあるか"
+        },
+        "nextCursor": {
+          "description": "続きを取得するためのカーソル",
+          "type": "string"
+        },
+        "scannedChunks": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "走査したかたまりの数"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "amountYen": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "applicantName": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "category",
+              "status",
+              "amountYen",
+              "applicantName",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          },
+          "description": "申請の要約。本文は含みません"
+        },
+        "error": {
+          "description": "失敗したときだけ入ります",
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "retryAfterSeconds": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "code",
+            "retryable"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "total",
+        "returned",
+        "hasMore",
+        "scannedChunks",
+        "items"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "get_request",
+    "title": "申請の詳細を見る",
+    "description": "申請 1 件の詳細（題名・本文・金額・状態・承認ルートの進行状況）を返します。ID が分からないときは先に search_requests で探してください。コメント・添付・履歴は既定では返しません。判断に必要なものだけ include に並べてください。本文は 400 文字で切ります。全文は request://{id} を読んでください。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^req-\\d{4}$",
+          "description": "申請 ID（req-1001 の形式）"
+        },
+        "include": {
+          "description": "追加で含めるセクション。省略すると詳細と承認ルートだけを返します",
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "comments",
+              "attachments",
+              "history"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requestId"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "save_request",
+    "title": "申請を書く（新規作成・下書き更新）",
+    "description": "申請の下書きを作成または更新します。requestId を省略すると新規作成、指定すると既存の下書きの更新です。新規作成では title・category・amountYen・body が必須です。このツールは審査を開始しません（提出は submit_request）。編集できるのは draft の申請だけです。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "description": "更新する下書きの ID。省略すると新規作成になります",
+          "type": "string",
+          "pattern": "^req-\\d{4}$"
+        },
+        "title": {
+          "description": "題名（60 文字以内）",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "category": {
+          "description": "申請区分",
+          "type": "string",
+          "enum": [
+            "expense",
+            "purchase",
+            "leave",
+            "travel"
+          ]
+        },
+        "amountYen": {
+          "description": "金額（円、税込）。休暇など金額のない申請は 0",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000
+        },
+        "body": {
+          "description": "申請本文。理由と内訳を書きます",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "submit_request",
+    "title": "申請を提出する（確認つき）",
+    "description": "下書きの申請を提出し、承認ルートの審査を開始します。提出すると承認者に通知が飛び、取り消しは Web 画面でしかできません。そのため二段階です。まず confirm を付けずに呼ぶと、提出後に何が起きるかの予告と previewToken を返します。内容をユーザーに確認したうえで、confirm: true と previewToken を付けて再度呼ぶと確定します。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^req-\\d{4}$",
+          "description": "提出する下書きの ID"
+        },
+        "confirm": {
+          "default": false,
+          "description": "false（既定）はドライラン。true で実際に提出します（previewToken が必須）",
+          "type": "boolean"
+        },
+        "previewToken": {
+          "description": "ドライランの結果に含まれる値をそのまま渡します。申請が変わると無効になります",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requestId"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "decide_request",
+    "title": "申請を承認・却下・差し戻しする（確認つき）",
+    "description": "審査中の申請に決裁を下します。決裁は取り消せないため二段階です。まず confirm を付けずに呼んで、何段目の決裁か・確定後の状態・通知先・previewToken を受け取り、ユーザーの承諾を得てから confirm: true と previewToken を付けて再度呼び出してください。reject と return_for_changes では comment（理由）が必須です。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^req-\\d{4}$",
+          "description": "決裁する申請の ID"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject",
+            "return_for_changes"
+          ],
+          "description": "approve=承認（最終段なら承認確定）/ reject=却下（終了）/ return_for_changes=申請者へ差し戻して下書きに戻す"
+        },
+        "comment": {
+          "description": "決裁理由。reject と return_for_changes では必須。申請者に表示されます",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "confirm": {
+          "default": false,
+          "description": "false（既定）はドライラン。true で実際に決裁します（previewToken が必須）",
+          "type": "boolean"
+        },
+        "previewToken": {
+          "description": "ドライランの結果に含まれる値をそのまま渡します。申請が変わると無効になります",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requestId",
+        "decision"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "applied": {
+          "type": "boolean",
+          "description": "実際に決裁したか（ドライランなら false）"
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "currentStatus": {
+          "type": "string",
+          "description": "現在の状態"
+        },
+        "nextStatus": {
+          "type": "string",
+          "description": "確定後の状態（ドライランでは見込み）"
+        },
+        "stepLabel": {
+          "type": "string",
+          "description": "何段目の決裁か（例: 1/2 段目）"
+        },
+        "finalizes": {
+          "type": "boolean",
+          "description": "この決裁で審査が終わるか"
+        },
+        "notifyTo": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "通知先"
+        },
+        "previewToken": {
+          "description": "確定時に渡す値（ドライランのときだけ返す）",
+          "type": "string"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "retryAfterSeconds": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "code",
+            "retryable"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "applied",
+        "requestId",
+        "decision",
+        "currentStatus",
+        "nextStatus",
+        "stepLabel",
+        "finalizes",
+        "notifyTo"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "comment_on_request",
+    "title": "申請にコメントを付ける",
+    "description": "申請にコメントを 1 件追加します。状態は変わりません。決裁の理由を書きたい場合は decide_request の comment を使ってください（決裁と紐づいた記録になります）。資料を添えたいときは共有リンクの URL を links に渡します（ファイル本体はアップロードできません）。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^req-\\d{4}$",
+          "description": "コメントを付ける申請の ID"
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "コメント本文（500 文字以内）"
+        },
+        "links": {
+          "description": "参考資料の URL（https のみ、3 件まで）",
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^https:\\/\\/\\S+$"
+          }
+        }
+      },
+      "required": [
+        "requestId",
+        "body"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  }
+]

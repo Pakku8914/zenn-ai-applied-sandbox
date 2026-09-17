@@ -1,0 +1,68 @@
+{
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "session13-fixture",
+      "version": "1.0.0"
+    }
+  },
+  "cacheScope": "private",
+  "resultType": "complete",
+  "tools": [
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "受け取ったテキストを指定回数だけ繰り返して返します。テストの土台を確かめるためのツールです。",
+      "inputSchema": {
+        "properties": {
+          "count": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "繰り返す回数（1〜5、既定 1）",
+            "title": "Count"
+          },
+          "text": {
+            "description": "繰り返す対象のテキスト（1〜100 文字）",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "echo_textArguments",
+        "type": "object"
+      },
+      "name": "echo_text",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "echo_textOutput",
+        "type": "object"
+      },
+      "title": "テキストのエコー"
+    }
+  ],
+  "ttlMs": 0
+}

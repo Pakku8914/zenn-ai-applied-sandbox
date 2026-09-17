@@ -1,0 +1,43 @@
+# セッション13 のワークフローに追加するジョブ。
+# タグを打ったときに走り、配布物の検査が失敗したらリリースを止める。
+# working-directory はリポジトリの構成に合わせて変更してください。
+name: release-check
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  npm-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.2
+      - name: 依存を取得する
+        run: npm ci
+      - name: ビルドする（検査の前に必ず行う）
+        run: npm run build
+        working-directory: packages/docsearch-mcp
+      - name: 配布物を検査する
+        run: npx tsx scripts/check-package.ts packages/docsearch-mcp
+      - name: 配布物から起動して MCP として応答するか確認する
+        run: |
+          npm pack --pack-destination /tmp
+          npm install -g /tmp/docsearch-mcp-*.tgz
+          npx tsx scripts/probe-stdio.ts docsearch-mcp --docs-root "$PWD/fixtures/docs"
+        working-directory: packages/docsearch-mcp
+
+  pypi-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.13.14
+      - name: 依存を取得する
+        run: pip install -r requirements.txt
+      - name: 配布物を検査する（エントリーポイントの import を含む）
+        run: python scripts/pack_sdist.py packages/docsearch-mcp-py

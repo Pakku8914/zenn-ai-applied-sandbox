@@ -1,0 +1,45 @@
+# MCP サーバー開発 動作確認用サンドボックス
+#
+# TypeScript（node サービス）と Python（python サービス）の 2 つの実行環境を用意しています。
+# どちらのサービスも「常駐して待つ」だけのコンテナです。実際のコマンドは
+# `docker compose exec <サービス名> ...` でコンテナの中に入って実行します。
+#
+#   docker compose up -d --build                     # 起動（初回のみ --build）
+#   docker compose exec node npm run smoke           # TypeScript サーバーの疎通確認
+#   docker compose exec python python src/smoke.py   # Python サーバーの疎通確認
+#   docker compose down                              # 停止・破棄
+#
+# プロジェクト名を明示しています。省略するとディレクトリ名（sandbox）が使われ、
+# 他の教材のサンドボックスと同名になって取り違えが起きるためです。
+name: mcp-server-development-sandbox
+
+services:
+  node:
+    build: ./node
+    working_dir: /app
+    volumes:
+      # ホスト側の node/ をコンテナへマウント。エディタでの編集が即座に反映される
+      - ./node:/app
+      # node_modules はコンテナ内で生成したものを使う（匿名ボリュームで上書きを防ぐ）
+      - /app/node_modules
+    ports:
+      # Streamable HTTP トランスポートの章で使用。
+      # 127.0.0.1 に限定して公開しているため、同じネットワークの他の端末からは接続できない
+      - "127.0.0.1:3939:3939"
+    # MCP サーバーは stdio で動くため Web サーバーのように常駐させない。
+    # コンテナだけ待機させ、exec でコマンドを叩く運用にする
+    command: sleep infinity
+    tty: true
+    stdin_open: true
+
+  python:
+    build: ./python
+    working_dir: /app
+    volumes:
+      - ./python:/app
+    ports:
+      # Streamable HTTP トランスポートの章で使用（127.0.0.1 のみ公開）
+      - "127.0.0.1:8787:8787"
+    command: sleep infinity
+    tty: true
+    stdin_open: true

@@ -1,0 +1,102 @@
+[
+  {
+    "name": "echo_text",
+    "title": "テキストのエコー",
+    "description": "受け取ったテキストを指定回数だけ繰り返して返します。テストの土台を確かめるためのツールです。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "繰り返す対象のテキスト（1〜100 文字）"
+        },
+        "count": {
+          "description": "繰り返す回数（1〜5、既定 1）",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "fail_always",
+    "title": "必ず失敗する処理",
+    "description": "ツール実行層の失敗（isError）を観測するためのツールです。常に失敗します。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "失敗理由として返す文字列"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "slow_task",
+    "title": "時間のかかる処理",
+    "description": "指定したミリ秒だけ待ってから終わります。キャンセルとタイムアウトの検証に使います。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "記録用のタスク識別子"
+        },
+        "ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000,
+          "description": "待つ時間（ミリ秒）"
+        }
+      },
+      "required": [
+        "taskId",
+        "ms"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  }
+]

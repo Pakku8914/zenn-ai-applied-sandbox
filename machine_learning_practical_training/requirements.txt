@@ -1,0 +1,14 @@
+# バージョン基準日: 2026-09-08（本書の全章はこの組み合わせで検証しています）
+pandas==3.0.5
+numpy==2.5.3
+scikit-learn==1.9.0
+scipy==1.18.1
+statsmodels==0.15.0
+matplotlib==3.11.1
+seaborn==0.13.2
+lightgbm==4.7.0
+shap==0.52.0
+joblib==1.6.0
+pytest==9.1.1
+jupyterlab==4.6.3
+ipykernel==7.3.0

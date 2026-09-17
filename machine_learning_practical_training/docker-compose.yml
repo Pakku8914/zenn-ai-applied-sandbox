@@ -1,0 +1,19 @@
+# 機械学習とデータ分析の実践入門 — 動作確認用サンドボックス
+# 使い方: docker compose up -d  →  docker compose exec lab bash
+name: machine_learning_practical_training
+
+services:
+  lab:
+    build: .
+    working_dir: /work
+    # ローカルのファイルをそのままコンテナから見えるようにする（エディタで編集 → すぐ実行）
+    volumes:
+      - .:/work
+    environment:
+      MPLBACKEND: Agg          # 画面のない環境でも図を PNG に保存できるようにする
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    ports:
+      # JupyterLab を使う場合のみ利用する。他の教材と衝突しないポートに割り当てている
+      - "127.0.0.1:8899:8899"
+    command: ["sleep", "infinity"]

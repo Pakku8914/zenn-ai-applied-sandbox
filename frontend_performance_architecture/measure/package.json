@@ -1,0 +1,13 @@
+{
+  "name": "frontend-performance-measure",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "measure": "node --experimental-strip-types src/measure.ts",
+    "verify": "node --experimental-strip-types src/verify-setup.ts"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "realm": "bookstore",
+  "enabled": true,
+  "displayName": "Bookstore (learning realm)",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "roles": {
+    "realm": [
+      { "name": "customer", "description": "書籍を購入・閲覧できる一般利用者" },
+      { "name": "staff", "description": "在庫と注文を管理できる店舗スタッフ" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "web-app",
+      "name": "Bookstore Web (public client)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3100/*"],
+      "webOrigins": ["http://localhost:3100"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3100/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "api-service-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "api-service",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "api-service",
+      "name": "Bookstore API (resource server)",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "api-service-secret"
+    },
+    {
+      "clientId": "batch-worker",
+      "name": "Nightly batch (confidential client)",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "batch-worker-secret",
+      "protocolMappers": [
+        {
+          "name": "api-service-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "api-service",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "alice@example.com",
+      "firstName": "Alice",
+      "lastName": "Customer",
+      "credentials": [{ "type": "password", "value": "alice-pass", "temporary": false }],
+      "realmRoles": ["customer"]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "bob@example.com",
+      "firstName": "Bob",
+      "lastName": "Staff",
+      "credentials": [{ "type": "password", "value": "bob-pass", "temporary": false }],
+      "realmRoles": ["customer", "staff"]
+    }
+  ]
+}

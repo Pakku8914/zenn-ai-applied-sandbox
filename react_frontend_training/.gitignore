@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.local
+*.tsbuildinfo
+.DS_Store
+# 章コード検証用の一時抽出先（/tmp/react-verify.mjs が生成）
+src/__verify__/

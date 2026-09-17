@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    volumes:
+      # ローカルのプロジェクトをコンテナにバインドマウントする（編集が即反映 → HMR）
+      - .:/app
+      # node_modules はコンテナ内で install したものを使う（ホスト側の空ディレクトリで上書きしない）
+      - /app/node_modules
+    ports:
+      # ホストの 5173 をコンテナの Vite 開発サーバに割り当てる
+      - "5173:5173"
+    # Dockerfile の CMD と同じ。0.0.0.0 待ち受けでホストブラウザから到達可能にする
+    command: npm run dev -- --host

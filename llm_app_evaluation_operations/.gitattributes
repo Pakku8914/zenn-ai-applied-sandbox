@@ -1,0 +1,2 @@
+# Windows でも LF を維持する（CRLF 混入による実行時の不具合を防ぐ）
+* text=auto eol=lf

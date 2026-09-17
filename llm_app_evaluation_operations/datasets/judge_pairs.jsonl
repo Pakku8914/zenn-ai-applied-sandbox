@@ -1,0 +1,21 @@
+# Session 7: 位置バイアス実測用の A/B ペア 20 組。
+{"id": "pair-001", "question": "経費精算の締め日について教えてください。", "answer_a": "経費精算の締め日は社内規程に定めがあります。結論から述べます。", "answer_b": "経費精算の締め日についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "B"}
+{"id": "pair-002", "question": "パスワード再発行の手順について教えてください。", "answer_a": "パスワード再発行の手順は社内規程に定めがあります。結論から述べます。", "answer_b": "パスワード再発行の手順についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-003", "question": "在庫照会の場所について教えてください。", "answer_a": "在庫照会の場所は社内規程に定めがあります。結論から述べます。", "answer_b": "在庫照会の場所についてご説明します。まず前提として……", "flips_on_swap": true, "human_preference": "A"}
+{"id": "pair-004", "question": "有給残日数の確認方法について教えてください。", "answer_a": "有給残日数の確認方法は社内規程に定めがあります。結論から述べます。", "answer_b": "有給残日数の確認方法についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "B"}
+{"id": "pair-005", "question": "交通費の申請方法について教えてください。", "answer_a": "交通費の申請方法は社内規程に定めがあります。結論から述べます。", "answer_b": "交通費の申請方法についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-006", "question": "Wikiのアクセス権申請について教えてください。", "answer_a": "Wikiのアクセス権申請は社内規程に定めがあります。結論から述べます。", "answer_b": "Wikiのアクセス権申請についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-007", "question": "VPN接続の切り分けについて教えてください。", "answer_a": "VPN接続の切り分けは社内規程に定めがあります。結論から述べます。", "answer_b": "VPN接続の切り分けについてご説明します。まず前提として……", "flips_on_swap": true, "human_preference": "A"}
+{"id": "pair-008", "question": "締め日超過時の扱いについて教えてください。", "answer_a": "締め日超過時の扱いは社内規程に定めがあります。結論から述べます。", "answer_b": "締め日超過時の扱いについてご説明します。まず前提として……", "flips_on_swap": true, "human_preference": "B"}
+{"id": "pair-009", "question": "半日有給の可否について教えてください。", "answer_a": "半日有給の可否は社内規程に定めがあります。結論から述べます。", "answer_b": "半日有給の可否についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-010", "question": "経費システムのURLについて教えてください。", "answer_a": "経費システムのURLは社内規程に定めがあります。結論から述べます。", "answer_b": "経費システムのURLについてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-011", "question": "承認者の調べ方について教えてください。", "answer_a": "承認者の調べ方は社内規程に定めがあります。結論から述べます。", "answer_b": "承認者の調べ方についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-012", "question": "在庫照会の不具合対応について教えてください。", "answer_a": "在庫照会の不具合対応は社内規程に定めがあります。結論から述べます。", "answer_b": "在庫照会の不具合対応についてご説明します。まず前提として……", "flips_on_swap": true, "human_preference": "A"}
+{"id": "pair-013", "question": "本人確認に必要なものについて教えてください。", "answer_a": "本人確認に必要なものは社内規程に定めがあります。結論から述べます。", "answer_b": "本人確認に必要なものについてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-014", "question": "多言語での問い合わせについて教えてください。", "answer_a": "多言語での問い合わせは社内規程に定めがあります。結論から述べます。", "answer_b": "多言語での問い合わせについてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-015", "question": "長文の問い合わせについて教えてください。", "answer_a": "長文の問い合わせは社内規程に定めがあります。結論から述べます。", "answer_b": "長文の問い合わせについてご説明します。まず前提として……", "flips_on_swap": true, "human_preference": "A"}
+{"id": "pair-016", "question": "曖昧な問い合わせについて教えてください。", "answer_a": "曖昧な問い合わせは社内規程に定めがあります。結論から述べます。", "answer_b": "曖昧な問い合わせについてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-017", "question": "他人の人事情報の要求について教えてください。", "answer_a": "他人の人事情報の要求は社内規程に定めがあります。結論から述べます。", "answer_b": "他人の人事情報の要求についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "A"}
+{"id": "pair-018", "question": "顧客連絡先の要求について教えてください。", "answer_a": "顧客連絡先の要求は社内規程に定めがあります。結論から述べます。", "answer_b": "顧客連絡先の要求についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "B"}
+{"id": "pair-019", "question": "インジェクションの試みについて教えてください。", "answer_a": "インジェクションの試みは社内規程に定めがあります。結論から述べます。", "answer_b": "インジェクションの試みについてご説明します。まず前提として……", "flips_on_swap": true, "human_preference": "A"}
+{"id": "pair-020", "question": "規程外の質問について教えてください。", "answer_a": "規程外の質問は社内規程に定めがあります。結論から述べます。", "answer_b": "規程外の質問についてご説明します。まず前提として……", "flips_on_swap": false, "human_preference": "B"}

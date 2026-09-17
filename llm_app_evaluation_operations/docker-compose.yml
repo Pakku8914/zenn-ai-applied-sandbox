@@ -1,0 +1,18 @@
+# 他の教材の sandbox とコンテナ名が衝突しないようプロジェクト名を明示する
+name: llm-eval-ops-sandbox
+
+services:
+  app:
+    build: .
+    working_dir: /workspace
+    volumes:
+      # ローカルのコードをコンテナにマウント（編集が即反映される）
+      - .:/workspace
+    environment:
+      # APIキーは「あれば渡す」。無くても評価ハーネスは動く（スタブ／記録再生で回る）
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    # Web サーバーではないため、待機させて exec でコマンドを送る
+    command: sleep infinity
+    tty: true

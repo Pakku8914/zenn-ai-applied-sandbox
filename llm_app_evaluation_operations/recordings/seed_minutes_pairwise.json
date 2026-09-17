@@ -1,0 +1,27 @@
+{
+  "_comment": "中間プロジェクト用のシード応答（A/B の pairwise 比較）。1 ペアにつき judge を 2 回呼ぶ。first は「回答1=A / 回答2=B」の順で提示したときの judge の生の答え、second は順序を入れ替えて「回答1=B / 回答2=A」で提示したときの答え。どちらも \"1\" か \"2\"（提示順での番号）で、位置に引きずられたペアは first と second が同じ値になる。",
+  "_usage": {
+    "input_tokens": 1200,
+    "output_tokens": 20
+  },
+  "min-001": { "first": "1", "second": "1", "note": "どちらも先に出た方を選んだ（位置バイアス）" },
+  "min-002": { "first": "1", "second": "1", "note": "どちらも先に出た方を選んだ（位置バイアス）" },
+  "min-003": { "first": "1", "second": "2", "note": "順序に依存せず A を選んだ" },
+  "min-004": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-005": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-006": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-007": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-008": { "first": "1", "second": "2", "note": "順序に依存せず A を選んだ" },
+  "min-009": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-010": { "first": "1", "second": "1", "note": "どちらも先に出た方を選んだ（位置バイアス）" },
+  "min-011": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-012": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-013": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-014": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-015": { "first": "1", "second": "2", "note": "順序に依存せず A を選んだ" },
+  "min-016": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-017": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-018": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-019": { "first": "2", "second": "1", "note": "順序に依存せず B を選んだ" },
+  "min-020": { "first": "1", "second": "1", "note": "どちらも先に出た方を選んだ（位置バイアス）" }
+}

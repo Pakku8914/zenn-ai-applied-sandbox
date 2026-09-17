@@ -1,0 +1,13 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+reports/
+# 演習が実行時に書き出す状態ファイル（フラグ・デプロイ版・ログ）
+session*/flags.json
+session*/deploy.json
+session*/out/
+session*/logs/

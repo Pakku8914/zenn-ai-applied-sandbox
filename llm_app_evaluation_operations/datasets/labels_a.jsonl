@@ -1,0 +1,16 @@
+# Session 4: アノテータ A の初期ラベル。
+{"id": "ann-001", "annotator": "A", "label": 1}
+{"id": "ann-002", "annotator": "A", "label": 1}
+{"id": "ann-003", "annotator": "A", "label": 1}
+{"id": "ann-004", "annotator": "A", "label": 0}
+{"id": "ann-005", "annotator": "A", "label": 1}
+{"id": "ann-006", "annotator": "A", "label": 1}
+{"id": "ann-007", "annotator": "A", "label": 0}
+{"id": "ann-008", "annotator": "A", "label": 1}
+{"id": "ann-009", "annotator": "A", "label": 1}
+{"id": "ann-010", "annotator": "A", "label": 1}
+{"id": "ann-011", "annotator": "A", "label": 0}
+{"id": "ann-012", "annotator": "A", "label": 0}
+{"id": "ann-013", "annotator": "A", "label": 1}
+{"id": "ann-014", "annotator": "A", "label": 0}
+{"id": "ann-015", "annotator": "A", "label": 0}

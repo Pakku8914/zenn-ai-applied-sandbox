@@ -1,0 +1,94 @@
+# データベース内部構造とクエリ最適化 ― 動作確認用サンドボックス
+# 起動: docker compose up -d --wait
+name: database-internals-query-tuning
+
+services:
+  # 主題材。内部構造を覗くための拡張を初期化時に有効化する
+  pg:
+    image: postgres:18.6-trixie
+    command:
+      # 学習用に統計とログを厚めに取る。本番の推奨値ではないことを本文で明示する
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - track_io_timing=on
+      - -c
+      - log_min_duration_statement=200
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - autovacuum_naptime=10s
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: labpass
+      POSTGRES_DB: shopdb
+      # 出力を固定して本文の実行例と一致させる
+      LANG: C
+      PGTZ: UTC
+    ports:
+      - "127.0.0.1:5442:5432"
+    volumes:
+      - ./pg/init:/docker-entrypoint-initdb.d:ro
+      # PostgreSQL 18 以降の公式イメージは /var/lib/postgresql にマウントする。
+      # 17 以前の /var/lib/postgresql/data を指定すると起動時にエラーで停止する。
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d shopdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # 比較用。同じ問題を InnoDB がどう解いているかを見るためだけに使う
+  mysql:
+    image: mysql:9.7.2
+    command:
+      - --innodb-buffer-pool-size=256M
+      - --slow-query-log=ON
+      - --long-query-time=0.2
+      - --innodb-print-all-deadlocks=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_USER: lab
+      MYSQL_PASSWORD: labpass
+      MYSQL_DATABASE: shopdb
+      TZ: UTC
+    ports:
+      - "127.0.0.1:3316:3306"
+    volumes:
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ulab", "-plabpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # 読者が作業する場所。psql / mysql クライアントと Python を持つ
+  lab:
+    build: ./lab
+    working_dir: /work
+    volumes:
+      - ./lab:/work
+    environment:
+      PGHOST: pg
+      PGUSER: lab
+      PGPASSWORD: labpass
+      PGDATABASE: shopdb
+      MYSQL_HOST: mysql
+      MYSQL_PWD: labpass
+      PYTHONUNBUFFERED: "1"
+    # 常駐させて exec で入る
+    command: ["sleep", "infinity"]
+    depends_on:
+      pg:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  mysqldata:

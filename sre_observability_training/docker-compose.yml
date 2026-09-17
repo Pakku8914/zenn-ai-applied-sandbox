@@ -1,0 +1,110 @@
+# SRE と可観測性の実践 ― 動作確認用サンドボックス
+# 起動: docker compose up -d --wait
+# 負荷試験のみオンデマンド: docker compose run --rm k6 run /scripts/smoke.js
+name: sre-observability-training
+
+services:
+  # 観測対象のサンプルアプリ（意図的に遅い／失敗するエンドポイントを持つ）
+  app:
+    build: ./app
+    ports:
+      - "127.0.0.1:8100:8000"
+    environment:
+      OTEL_SERVICE_NAME: checkout-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER: otlp
+      # Python のログを OTLP で送るには、この明示的な有効化が必要（既定は無効）
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      # メトリクスの送信間隔。既定は 60000（60秒）で、学習中は待ち時間が長すぎるため 5 秒にする
+      OTEL_METRIC_EXPORT_INTERVAL: "5000"
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./app/src:/app/src
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz').read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    depends_on:
+      otel-collector:
+        condition: service_started
+
+  # テレメトリの単一の入口。app は Collector しか知らない
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel/config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+      - "127.0.0.1:8889:8889"   # Prometheus 形式で公開（scrape 対象）
+    depends_on:
+      - loki
+      - tempo
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=6h
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9190:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  loki:
+    image: grafana/loki:3.7.7
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+    ports:
+      - "127.0.0.1:3210:3100"
+
+  tempo:
+    image: grafana/tempo:2.10.8
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./tempo/config.yaml:/etc/tempo/config.yaml:ro
+    ports:
+      - "127.0.0.1:3220:3200"
+
+  grafana:
+    image: grafana/grafana:13.2.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_USERS_DEFAULT_THEME: light
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "127.0.0.1:3200:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    depends_on:
+      - prometheus
+
+  # 負荷試験。常駐させない（profiles 指定のため up では起動しない）
+  k6:
+    image: grafana/k6:2.2.0
+    profiles: ["load"]
+    volumes:
+      - ./k6:/scripts:ro
+    environment:
+      TARGET: http://app:8000

@@ -1,0 +1,3 @@
+# Loki / Tempo / Prometheus のデータはコンテナ内の一時領域に置くため追跡しない
+**/data/
+__pycache__/

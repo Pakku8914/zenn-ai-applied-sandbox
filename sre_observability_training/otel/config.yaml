@@ -1,0 +1,56 @@
+# OpenTelemetry Collector の設定
+# 受信(receivers) → 加工(processors) → 送信(exporters) の3段で読む
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+  # 属性を落として基数（カーディナリティ）の爆発を防ぐ例
+  attributes/drop_high_cardinality:
+    actions:
+      - key: http.user_agent
+        action: delete
+
+exporters:
+  # メトリクス: Prometheus が scrape する形式で公開する
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+  # トレース: Tempo へ OTLP gRPC で送る
+  otlp_grpc/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  # ログ: Loki の OTLP エンドポイントへ送る
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+  # テレメトリが届かないときの切り分けに使う。パイプラインに足すと標準出力に内容が出る。
+  # 使うときは service.telemetry.logs.level を info に上げること（warn だと出力されない）。
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp_grpc/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch, attributes/drop_high_cardinality]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp_http/loki]
+  telemetry:
+    logs:
+      level: warn

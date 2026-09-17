@@ -14,6 +14,16 @@ Zenn で公開している書籍（[Pakku8914 の本](https://zenn.dev/pakku8914
 | [`aws_genai_developer_pro_active_recall/`](./aws_genai_developer_pro_active_recall) | AWS認定 Generative AI Developer – Professional（AIP-C01）アクティブリコール合格教材（近日公開） |
 | [`llm_finetuning_optimization/`](./llm_finetuning_optimization) | 手を動かして学ぶ LLMファインチューニングとモデル最適化 ― SFT・LoRA・DPO・量子化・蒸留をCPUだけで一巡させる（近日公開） |
 | [`network_protocols_practical_training/`](./network_protocols_practical_training) | [手を動かして学ぶ コンピュータネットワーク実践入門 ― パケットで追う TCP/IP・HTTP・DNS・TLS の仕組み](https://zenn.dev/pakku8914/books/network_protocols_practical_training) |
+| [`machine_learning_practical_training/`](./machine_learning_practical_training) | 手を動かして学ぶ 機械学習とデータ分析の実践入門 ― pandas・統計の基礎から scikit-learn による予測モデル構築まで（近日公開） |
+| [`llm_app_evaluation_operations/`](./llm_app_evaluation_operations) | 手を動かして学ぶ LLMアプリの評価と本番運用 ― eval 設計・ガードレール・コスト最適化・可観測性（近日公開） |
+| [`mcp_server_development/`](./mcp_server_development) | 手を動かして学ぶ MCP サーバー開発実践 ― Model Context Protocol で AI に自社のツールとデータをつなぐ（近日公開） |
+| [`typescript_fullstack_training/`](./typescript_fullstack_training) | TypeScriptで学ぶ プログラミングの基礎とWebアプリ開発 ― 型の基本からNext.jsでECサイトを作るまで（近日公開） |
+| [`react_frontend_training/`](./react_frontend_training) | 手を動かして学ぶ React + TypeScript 実践入門 ― Vite で作る型安全なモダンフロントエンド（SPA）（近日公開） |
+| [`frontend_performance_architecture/`](./frontend_performance_architecture) | 手を動かして学ぶ フロントエンド設計とパフォーマンス ― レンダリングの仕組みから Core Web Vitals・大規模設計まで（近日公開） |
+| [`auth_oauth_oidc_training/`](./auth_oauth_oidc_training) | 手を動かして学ぶ 認証・認可の実践入門 ― OAuth 2.1・OIDC・JWT でログインと API 保護を実装する（近日公開） |
+| [`database_internals_query_tuning/`](./database_internals_query_tuning) | 手を動かして学ぶ データベース内部構造とクエリ最適化 ― B+木・実行計画・MVCC から PostgreSQL のチューニングまで（近日公開） |
+| [`airflow_data_pipeline_training/`](./airflow_data_pipeline_training) | 手を動かして学ぶ Apache Airflow 実践入門 ― DAG 設計からデータパイプラインの本番運用・Amazon MWAA まで（近日公開） |
+| [`sre_observability_training/`](./sre_observability_training) | 手を動かして学ぶ SRE と可観測性の実践 ― SLO・OpenTelemetry・負荷試験でシステムの信頼性を設計する（近日公開） |
 
 ## 使い方
 
@@ -29,6 +39,8 @@ docker compose exec app bash verify-all.sh
 `verify-all.sh` が最後まで通れば、その書籍のコードがすべて手元で再現できている状態です。
 
 サービス名（`app` など）や検証スクリプトの有無は書籍によって異なります。各ディレクトリの `README.md` と書籍の「環境構築」章を優先してください。
+
+`typescript_fullstack_training/` だけは使い方が異なり、クローンしたディレクトリを作業場所にせず、完成版コードの参照元として使います（書籍の「環境構築」章を参照）。
 
 ## コーパスなどのデータについて
 

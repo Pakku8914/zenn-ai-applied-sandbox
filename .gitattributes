@@ -1,0 +1,10 @@
+# Windows で clone しても改行を LF に保つ（CRLF が混入するとコンテナ内のシェルスクリプトが動かない）
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.gguf binary
+*.onnx binary
+*.parquet binary

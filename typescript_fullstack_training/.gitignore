@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.next/
+coverage/
+*.log
+
+# 環境変数（秘密情報を含むためコミットしない）
+.env
+.env.local

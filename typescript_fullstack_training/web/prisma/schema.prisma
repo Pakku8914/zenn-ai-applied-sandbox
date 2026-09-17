@@ -1,0 +1,125 @@
+// ミニ雑貨ショップのデータベース定義（セッション23）。
+//
+// モデル名は PascalCase・単数形、テーブル名は snake_case・複数形。
+// 両者の対応は @@map（テーブル名）と @map（カラム名）で付ける。
+//
+// 適用: docker compose exec ts sh -c 'cd web && npx prisma migrate dev --name init'
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// 商品カテゴリ。slug は URL に出す短い英字の名前
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @db.VarChar(100)
+  slug String @unique @db.VarChar(50)
+
+  products Product[]
+
+  @@map("categories")
+}
+
+/// 商品。金額は円の整数（Int）で持つ
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  price       Int
+  stock       Int      @default(0)
+  description String
+  imageUrl    String   @default("/images/products/no-image.png") @map("image_url")
+  categoryId  Int      @map("category_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category   Category    @relation(fields: [categoryId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  // カテゴリでの絞り込みと商品名での検索に使う索引
+  @@index([categoryId])
+  @@index([name])
+  @@map("products")
+}
+
+/// 利用者。認証は「セッション25：認証と認可」で実装する
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash")
+  name         String   @db.VarChar(100)
+  /// 'user' または 'admin'。enum を使わずアプリ側のリテラル型のユニオンで扱う
+  role         String   @default("user") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  cartItems CartItem[]
+  orders    Order[]
+
+  @@map("users")
+}
+
+/// カートの明細。同じ利用者が同じ商品を2行持たないよう複合ユニークを張る
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  productId Int      @map("product_id")
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  // 先頭の user_id だけでの検索にもこの索引が使えるので、@@index([userId]) は張らない
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+/// 注文。status は 'pending' | 'paid' | 'shipped' | 'cancelled'
+model Order {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  status      String   @default("pending") @db.VarChar(20)
+  totalAmount Int      @map("total_amount")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user    User        @relation(fields: [userId], references: [id])
+  items   OrderItem[]
+  payment Payment?
+
+  @@index([userId])
+  @@map("orders")
+}
+
+/// 注文明細。unit_price には「注文した時点の価格」を写して残す
+model OrderItem {
+  id        Int @id @default(autoincrement())
+  orderId   Int @map("order_id")
+  productId Int @map("product_id")
+  quantity  Int
+  unitPrice Int @map("unit_price")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+/// 決済。1注文に1件（order_id が @unique）。冪等キーで二重決済を防ぐ
+model Payment {
+  id             Int      @id @default(autoincrement())
+  orderId        Int      @unique @map("order_id")
+  idempotencyKey String   @unique @map("idempotency_key")
+  status         String   @db.VarChar(20)
+  amount         Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}

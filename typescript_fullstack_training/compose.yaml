@@ -1,0 +1,51 @@
+# プロジェクト名を明示する。
+# 既定ではフォルダ名（sandbox）が使われ、他書籍のサンドボックスと衝突するため。
+name: ts-fullstack-sandbox
+
+services:
+  ts:
+    # Node.js 24 LTS に openssl（Prisma 用）と curl（HTTP の確認用）を足したもの。
+    # ベースイメージのタグは Dockerfile で固定している。
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /work # コンテナ内の作業ディレクトリ
+    ports:
+      # Session 21 以降の Next.js 開発サーバー（web/）をホストのブラウザから開くため。
+      # 3000 が使用中のときは左側だけを変える（例: "3100:3000" → http://localhost:3100）。
+      - "3000:3000"
+    volumes:
+      - .:/work # ホストのこのフォルダをコンテナと共有（編集が即反映される）
+      - /work/node_modules # node_modules はコンテナ内のものを使う（ホスト側で上書きしない）
+    environment:
+      # Session 23 以降で Prisma から使う接続情報
+      DATABASE_URL: postgresql://shop:shop_password@db:5432/shop
+    depends_on:
+      db:
+        condition: service_healthy
+    tty: true
+    command: sleep infinity # コンテナを起動したままにする（中でコマンドを実行するため）
+
+  db:
+    image: postgres:17-alpine # PostgreSQL 17
+    environment:
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop_password
+      POSTGRES_DB: shop
+    ports:
+      # 55432 で公開する。他書籍のサンドボックスや既存の PostgreSQL が
+      # 5432 を使っていても衝突しないようにするため（章本文で案内している
+      # 「ポートが使用中のときの対処」と同じ変更）。コンテナ間の通信は
+      # db:5432 のままなので、章のコードには影響しない。
+      - "55432:5432" # ホストのDBクライアントから接続したい場合に使う
+    volumes:
+      - db-data:/var/lib/postgresql/data # データをボリュームに永続化する
+    healthcheck:
+      # DB が接続を受け付けられる状態になってから ts サービスを起動させる
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  db-data:

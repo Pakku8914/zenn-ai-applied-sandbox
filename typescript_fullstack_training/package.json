@@ -1,0 +1,21 @@
+{
+  "name": "typescript-fullstack-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "『TypeScriptで学ぶ プログラミングの基礎とWebアプリ開発』動作確認用サンドボックス",
+  "scripts": {
+    "verify": "bash verify-all.sh",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.0.0"
+  }
+}

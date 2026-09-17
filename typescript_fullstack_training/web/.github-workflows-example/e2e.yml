@@ -1,0 +1,92 @@
+# E2E テストのワークフロー（最終プロジェクト）。
+#
+# 【置き場所についての注意】
+# あなたのプロジェクトでは .github/workflows/e2e.yml に置く。
+# 本書のサンドボックスでは .github-workflows-example/ に置いてある
+# （教材リポジトリの .github/workflows/ に置くと教材自身の CI が走ってしまうため）。
+#
+# 【Playwright は本書のサンドボックスに同梱していない】
+# ブラウザのダウンロードが数百MBになるためで、章では雛形の紹介に留めている。
+# 手元で試す場合は web/ で次を実行してから、このワークフローを有効にする。
+#   npm install -D @playwright/test
+#   npx playwright install --with-deps chromium
+#
+# ci.yml（型チェック・lint・ユニットテスト・ビルド）とは別のジョブにしている。
+# E2E は遅く壊れやすいので、速い検査の結果を待たずに落とせるようにするため。
+
+name: E2E
+
+on: [pull_request]
+
+jobs:
+  e2e:
+    name: ブラウザから注文できることを確かめる
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: shop
+          POSTGRES_PASSWORD: shop_password
+          POSTGRES_DB: shop_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shop -d shop_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://shop:shop_password@localhost:5432/shop_e2e
+      NEXT_TELEMETRY_DISABLED: '1'
+      # E2E 用の使い捨ての秘密。本番の値は絶対に書かない（secrets から渡す）
+      PAYMENT_WEBHOOK_SECRET: e2e-only-webhook-secret
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: Node.js を用意する
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: 依存をインストールする
+        run: npm ci
+
+      - name: ブラウザを用意する
+        # ブラウザ本体のダウンロードがこのジョブでいちばん重い工程
+        run: npx playwright install --with-deps chromium
+
+      - name: マイグレーションとシードを適用する
+        # 本番と同じ migrate deploy を使う。E2E は「本番と同じ手順」で組む
+        run: |
+          npx prisma migrate deploy
+          node --experimental-strip-types prisma/seed.ts
+
+      - name: 本番と同じ形でビルドする
+        # E2E は next dev ではなくビルド済みのアプリに対して行う。
+        # 開発サーバーは遅く、キャッシュの挙動も本番と違うためである
+        run: npm run build
+
+      - name: E2E を実行する
+        # playwright.config.ts の webServer に npm start を書いておけば、
+        # サーバーの起動と停止は Playwright が面倒を見てくれる
+        run: npx playwright test
+
+      - name: 失敗したときの記録を残す
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7

@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "バス・ボディケア", "slug": "bath-body" },
+  { "id": 2, "name": "キッチン雑貨", "slug": "kitchen" },
+  { "id": 3, "name": "ファブリック", "slug": "fabric" }
+]

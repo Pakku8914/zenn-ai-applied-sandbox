@@ -1,0 +1,26 @@
+# イメージに入れないもの（セッション28）。
+# COPY . . は「.dockerignore に書いていないものすべて」を送る。
+# 書き忘れると、イメージが太るだけでなく秘密まで入ってしまう。
+
+# ホストで入れた依存。コンテナの中で npm ci して入れ直すので不要
+node_modules
+
+# 前回のビルド結果。混ざると古いものが残る
+.next
+out
+*.tsbuildinfo
+
+# Git の履歴。ビルドには使わないのに巨大になりがち
+.git
+.gitignore
+
+# 秘密。ここを書き忘れるのが一番危ない
+.env
+.env.*
+
+# ビルドに関係しないもの
+Dockerfile
+.dockerignore
+.github-workflows-example
+npm-debug.log*
+README.md

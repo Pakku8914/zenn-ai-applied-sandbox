@@ -1,0 +1,100 @@
+# GitHub Actions のワークフロー（セッション28）。
+#
+# 【置き場所についての注意】
+# あなたのプロジェクトでは、このファイルを .github/workflows/ci.yml に置く。
+# 本書のサンドボックスでは .github-workflows-example/ に置いてある。
+# 教材リポジトリの .github/workflows/ に置くと、教材そのものの CI が走ってしまうため。
+#
+# やること: 依存の用意 → 型チェック → lint → テスト → ビルド の順に検査する。
+# 落ちたら、その時点で以降のステップは実行されない（既定の挙動）。
+
+name: CI
+
+# push と pull request のたびに走らせる。
+# 走る回数を絞りたい場合は on: { push: { branches: [main] }, pull_request: {} } のように書く。
+on: [push, pull_request]
+
+jobs:
+  verify:
+    name: 型チェック・lint・テスト・ビルド
+    runs-on: ubuntu-24.04
+    # 無限に回り続けて課金枠を食い潰さないための保険
+    timeout-minutes: 15
+
+    # テスト用のデータベースをジョブのあいだだけ立てる。
+    # 開発用の PostgreSQL とは別物なので、消えても困らない。
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: shop
+          POSTGRES_PASSWORD: shop_password
+          POSTGRES_DB: shop_test
+        ports:
+          - 5432:5432
+        # 受け付ける状態になるまで待つ。待たないと最初のテストだけ落ちる
+        options: >-
+          --health-cmd "pg_isready -U shop -d shop_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # CI 用の使い捨てデータベース。パスワードも使い捨てなのでここに書いてよい。
+      # 本番の接続情報は絶対にここに書かない（secrets から渡す）。
+      DATABASE_URL: postgresql://shop:shop_password@localhost:5432/shop_test
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    defaults:
+      run:
+        # このリポジトリでは Next.js アプリが web/ にある
+        working-directory: web
+
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: Node.js を用意する
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          # ロックファイルの内容から自動でキャッシュキーを作る。
+          # 依存が変わっていなければダウンロードを省略できる。
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: 依存をインストールする
+        # npm install ではなく npm ci。ロックファイルのとおりに入れ、勝手に更新しない
+        run: npm ci
+
+      - name: Prisma Client を生成する
+        run: npx prisma generate
+
+      - name: マイグレーションをテスト用データベースに適用する
+        # 本番と同じ migrate deploy を使う。migrate dev は開発専用
+        run: npx prisma migrate deploy
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: lint
+        # ESLint を入れたら有効にする（本書のサンドボックスには同梱していない）
+        # run: npx eslint .
+        run: echo "ESLint を導入したら npx eslint . に置き換える"
+
+      - name: テスト
+        run: npm test
+        env:
+          # 秘密は secrets から渡す。値はログに出さない（GitHub が自動で伏せる）
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          PAYMENT_WEBHOOK_SECRET: ${{ secrets.PAYMENT_WEBHOOK_SECRET }}
+
+      - name: ビルド
+        # 最後に置く。型・lint・テストが通ってから、いちばん重い工程に進む
+        run: npm run build
+
+      - name: 依存の脆弱性を確認する
+        # 新しい報告が登録された日に、コードを変えていなくても落ちることがある。
+        # 気づく仕組みは欲しいが CI を止めたくないので、失敗しても続行させる。
+        continue-on-error: true
+        run: npm audit --audit-level=high

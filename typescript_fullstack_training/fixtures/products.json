@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "name": "ラベンダーの石けん",
+    "price": 480,
+    "stock": 24,
+    "description": "ラベンダーの精油を練り込んだ手作りの石けんです。",
+    "imageUrl": "/images/products/lavender-soap.png",
+    "categoryId": 1
+  },
+  {
+    "id": 2,
+    "name": "ハンドクリーム",
+    "price": 1800,
+    "stock": 12,
+    "description": "べたつかない使用感の保湿ハンドクリームです。",
+    "imageUrl": "/images/products/hand-cream.png",
+    "categoryId": 1
+  },
+  {
+    "id": 3,
+    "name": "マグカップ",
+    "price": 2350,
+    "stock": 3,
+    "description": "厚みのある陶器で、冷めにくいマグカップです。",
+    "imageUrl": "/images/products/mug.png",
+    "categoryId": 2
+  },
+  {
+    "id": 4,
+    "name": "リネンのふきん",
+    "price": 990,
+    "stock": 0,
+    "description": "洗うほどやわらかくなるリネン100%のふきんです。",
+    "imageUrl": "/images/products/linen-cloth.png",
+    "categoryId": 3
+  },
+  {
+    "id": 5,
+    "name": "コットンのトートバッグ",
+    "price": 2800,
+    "stock": 5,
+    "description": "A4サイズが入る、しっかりした厚手のトートバッグです。",
+    "imageUrl": "/images/products/tote-bag.png",
+    "categoryId": 3
+  }
+]

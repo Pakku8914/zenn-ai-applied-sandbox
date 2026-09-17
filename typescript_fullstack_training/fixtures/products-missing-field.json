@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "name": "ラベンダーの石けん",
+    "price": 480,
+    "stock": 24,
+    "description": "ラベンダーの精油を練り込んだ手作りの石けんです。",
+    "imageUrl": "/images/products/lavender-soap.png",
+    "categoryId": 1
+  },
+  {
+    "id": 2,
+    "name": "ハンドクリーム",
+    "stock": 12,
+    "description": "べたつかない使用感の保湿ハンドクリームです。",
+    "imageUrl": "/images/products/hand-cream.png",
+    "categoryId": 1
+  }
+]

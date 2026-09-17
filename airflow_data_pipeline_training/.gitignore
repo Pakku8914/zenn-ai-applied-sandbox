@@ -1,0 +1,14 @@
+# Airflow が実行時に書き出すもの（教材には含めない）
+logs/*
+!logs/.gitkeep
+config/airflow.cfg
+config/*.json
+plugins/__pycache__/
+dags/__pycache__/
+*.pyc
+.env
+
+# DAG が生成する中間ファイル（Session 04 以降で使う作業ディレクトリ）
+include/tmp/
+compose.override.yaml
+iac/

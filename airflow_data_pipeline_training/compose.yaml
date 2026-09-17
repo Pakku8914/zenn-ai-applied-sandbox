@@ -1,0 +1,185 @@
+name: airflowlab
+
+# ============================================================================
+# データパイプライン実験室（airflowlab）
+# ----------------------------------------------------------------------------
+# 本書のコード例・練習問題を動かすための Airflow 3.2.1 環境。
+#  - Airflow のバージョンは Amazon MWAA のサポート版に合わせて 3.2.1 に固定する
+#    （latest は使わない。ローカルと MWAA で挙動が変わるのを避けるため）
+#  - Executor は LocalExecutor（Celery + Redis を省いて起動を軽くする）
+#  - 公開ポートはすべて 127.0.0.1 にバインドし、外部ネットワークへ露出させない
+# ============================================================================
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:3.2.1-python3.12
+  environment: &airflow-common-env
+    # --- 実行方式とメタデータDB ---------------------------------------------
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@metadb:5432/airflow
+    # Airflow 3 ではタスク実行が API 経由になるため、実行用 API の URL が必須
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://apiserver:8080/execution/
+
+    # --- 認証（学習用の固定ユーザーを作るため FAB 認証マネージャを使う）-----
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+
+    # --- 学習しやすさのための設定 -------------------------------------------
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"          # 公式サンプルDAGを出さない（自分のDAGに集中する）
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"  # 新しいDAGは停止状態で登場（暴走防止・本番と同じ既定）
+    AIRFLOW__CORE__TEST_CONNECTION: Enabled        # UI の「Test」ボタンで Connection を検証できるようにする
+    AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "10" # dags/ の再スキャン間隔（既定より短くして反映を早める）
+    AIRFLOW__API__BASE_URL: http://localhost:8080
+
+    # --- 秘密情報（学習用の固定値。実運用では必ず生成し直す）----------------
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-bM4iKaD1X7EZJYau5lXD_Vg6PJ-C0h92RjiRPo10whM=}
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:-airflowlab-jwt-secret-change-me}
+
+    # --- 分析用データベースへの Connection（環境変数で定義する方式）---------
+    # AIRFLOW_CONN_<接続ID を大文字にしたもの> という名前の環境変数は、
+    # そのまま Airflow の Connection として認識される。
+    AIRFLOW_CONN_WAREHOUSE: postgresql://analyst:analyst@warehouse:5432/warehouse
+
+    # --- ファイルの到着を待つ Sensor 用の Connection（Session 09 で使う）------
+    # FileSensor は fs_conn_id（既定 fs_default）の Connection を必ず要求するため、
+    # 用意しておかないと「Connection not found」で失敗する。
+    # extra の path が filepath の基点になる。
+    AIRFLOW_CONN_FS_DEFAULT: '{"conn_type":"fs","extra":{"path":"/opt/airflow/include"}}'
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./config:/opt/airflow/config
+    - ./plugins:/opt/airflow/plugins
+    - ./include:/opt/airflow/include
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends-on
+    metadb:
+      condition: service_healthy
+    warehouse:
+      condition: service_healthy
+
+services:
+  # --- Airflow 自身の状態を記録するメタデータDB -----------------------------
+  metadb:
+    image: postgres:16-alpine
+    container_name: airflowlab-metadb
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - metadb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # --- パイプラインの出力先となる分析用DB（raw / mart スキーマを持つ）-------
+  warehouse:
+    image: postgres:16-alpine
+    container_name: airflowlab-warehouse
+    environment:
+      POSTGRES_USER: analyst
+      POSTGRES_PASSWORD: analyst
+      POSTGRES_DB: warehouse
+    ports:
+      - "127.0.0.1:5433:5432"   # ホストの psql / GUI から覗けるようにする（localhost のみ）
+    volumes:
+      - warehouse-data:/var/lib/postgresql/data
+      - ./warehouse/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "analyst", "-d", "warehouse"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # --- 初期化（DBマイグレーション・管理ユーザー作成・権限調整）一度きり -----
+  init:
+    <<: *airflow-common
+    container_name: airflowlab-init
+    user: "0:0"   # bind mount の所有者を書き換えるため root で動かす
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        set -e
+        mkdir -p /opt/airflow/{logs,dags,config,plugins,include}
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/{logs,config,plugins}
+        exec /entrypoint airflow version
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
+    restart: "no"
+
+  # --- Web UI と REST API（Airflow 3 では webserver ではなく api-server）----
+  apiserver:
+    <<: *airflow-common
+    container_name: airflowlab-apiserver
+    command: api-server
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    depends_on:
+      <<: *airflow-common-depends-on
+      init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # --- スケジューラ（いつ何を動かすかを決めて実行を指示する司令塔）---------
+  scheduler:
+    <<: *airflow-common
+    container_name: airflowlab-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    environment:
+      <<: *airflow-common-env
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      # Session 16 のテストをこのコンテナで動かすため pytest を追加する。
+      # 起動時に一度だけインストールされる（学習用の割り切り。実運用では
+      # イメージにあらかじめ焼き込むか、CI 側だけに入れる）。
+      _PIP_ADDITIONAL_REQUIREMENTS: "pytest==9.1.1"
+    depends_on:
+      <<: *airflow-common-depends-on
+      apiserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- DAG プロセッサ（dags/ の Python を読んで DAG を登録する）------------
+  dag-processor:
+    <<: *airflow-common
+    container_name: airflowlab-dag-processor
+    command: dag-processor
+    depends_on:
+      <<: *airflow-common-depends-on
+      apiserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- トリガラー（Deferrable Operator の待機を引き受ける）-----------------
+  triggerer:
+    <<: *airflow-common
+    container_name: airflowlab-triggerer
+    command: triggerer
+    depends_on:
+      <<: *airflow-common-depends-on
+      apiserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  metadb-data:
+  warehouse-data:

@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="240" viewBox="0 0 720 240">
+  <!-- S04 の LCP 要素になるヒーロー画像。外部 URL を使わないよう、ページに同梱している。
+       4,096 バイト未満だと Vite がデータ URL としてインライン化するため、別ファイルとして出力される大きさにしてある。 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="0.55" stop-color="#155e75"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e0f2fe"/>
+    </linearGradient>
+    <linearGradient id="tag" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#ef4444"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="240" fill="url(#bg)"/>
+  <g fill="#ffffff" opacity="0.08">
+    <circle cx="37" cy="29" r="23"/>
+    <circle cx="112" cy="203" r="41"/>
+    <circle cx="188" cy="61" r="17"/>
+    <circle cx="241" cy="178" r="29"/>
+    <circle cx="306" cy="22" r="13"/>
+    <circle cx="359" cy="219" r="37"/>
+    <circle cx="423" cy="93" r="11"/>
+    <circle cx="467" cy="157" r="47"/>
+    <circle cx="531" cy="31" r="19"/>
+    <circle cx="583" cy="211" r="27"/>
+    <circle cx="641" cy="73" r="33"/>
+    <circle cx="697" cy="188" r="21"/>
+    <circle cx="71" cy="121" r="9"/>
+    <circle cx="153" cy="137" r="14"/>
+    <circle cx="279" cy="109" r="7"/>
+    <circle cx="397" cy="141" r="16"/>
+    <circle cx="509" cy="113" r="8"/>
+    <circle cx="617" cy="139" r="12"/>
+  </g>
+  <g stroke="#ffffff" stroke-width="2" opacity="0.12">
+    <line x1="0" y1="47" x2="720" y2="31"/>
+    <line x1="0" y1="89" x2="720" y2="104"/>
+    <line x1="0" y1="133" x2="720" y2="117"/>
+    <line x1="0" y1="171" x2="720" y2="189"/>
+    <line x1="0" y1="213" x2="720" y2="198"/>
+    <line x1="83" y1="0" x2="61" y2="240"/>
+    <line x1="227" y1="0" x2="249" y2="240"/>
+    <line x1="371" y1="0" x2="353" y2="240"/>
+    <line x1="509" y1="0" x2="527" y2="240"/>
+    <line x1="659" y1="0" x2="641" y2="240"/>
+  </g>
+  <g>
+    <rect x="34" y="58" width="118" height="146" rx="12" fill="url(#card)"/>
+    <rect x="46" y="70" width="94" height="68" rx="8" fill="#bfdbfe"/>
+    <circle cx="93" cy="104" r="21" fill="#60a5fa"/>
+    <rect x="46" y="148" width="71" height="9" rx="4" fill="#334155"/>
+    <rect x="46" y="163" width="52" height="7" rx="3" fill="#94a3b8"/>
+    <rect x="46" y="178" width="39" height="14" rx="7" fill="url(#tag)"/>
+  </g>
+  <g>
+    <rect x="166" y="47" width="118" height="157" rx="12" fill="url(#card)"/>
+    <rect x="178" y="59" width="94" height="73" rx="8" fill="#fde68a"/>
+    <rect x="203" y="77" width="44" height="37" rx="6" fill="#f59e0b"/>
+    <rect x="178" y="142" width="83" height="9" rx="4" fill="#334155"/>
+    <rect x="178" y="157" width="58" height="7" rx="3" fill="#94a3b8"/>
+    <rect x="178" y="176" width="47" height="15" rx="7" fill="url(#tag)"/>
+  </g>
+  <g>
+    <rect x="298" y="63" width="118" height="141" rx="12" fill="url(#card)"/>
+    <rect x="310" y="75" width="94" height="63" rx="8" fill="#bbf7d0"/>
+    <polygon points="357,83 381,127 333,127" fill="#22c55e"/>
+    <rect x="310" y="146" width="66" height="9" rx="4" fill="#334155"/>
+    <rect x="310" y="161" width="61" height="7" rx="3" fill="#94a3b8"/>
+    <rect x="310" y="176" width="43" height="14" rx="7" fill="url(#tag)"/>
+  </g>
+  <g>
+    <rect x="430" y="52" width="118" height="152" rx="12" fill="url(#card)"/>
+    <rect x="442" y="64" width="94" height="71" rx="8" fill="#fbcfe8"/>
+    <ellipse cx="489" cy="99" rx="31" ry="19" fill="#ec4899"/>
+    <rect x="442" y="143" width="77" height="9" rx="4" fill="#334155"/>
+    <rect x="442" y="158" width="49" height="7" rx="3" fill="#94a3b8"/>
+    <rect x="442" y="177" width="51" height="15" rx="7" fill="url(#tag)"/>
+  </g>
+  <g>
+    <rect x="562" y="67" width="124" height="137" rx="12" fill="url(#card)"/>
+    <rect x="574" y="79" width="100" height="59" rx="8" fill="#ddd6fe"/>
+    <circle cx="607" cy="108" r="13" fill="#8b5cf6"/>
+    <circle cx="641" cy="108" r="17" fill="#a78bfa"/>
+    <rect x="574" y="146" width="87" height="9" rx="4" fill="#334155"/>
+    <rect x="574" y="161" width="63" height="7" rx="3" fill="#94a3b8"/>
+    <rect x="574" y="176" width="45" height="14" rx="7" fill="url(#tag)"/>
+  </g>
+  <g fill="#fde047">
+    <polygon points="28,18 31,26 39,26 33,31 35,39 28,34 21,39 23,31 17,26 25,26"/>
+    <polygon points="319,11 321,17 327,17 322,21 324,27 319,23 314,27 316,21 311,17 317,17"/>
+    <polygon points="703,19 706,27 714,27 708,32 710,40 703,35 696,40 698,32 692,27 700,27"/>
+    <polygon points="551,219 553,225 559,225 554,229 556,235 551,231 546,235 548,229 543,225 549,225"/>
+    <polygon points="157,221 159,227 165,227 160,231 162,237 157,233 152,237 154,231 149,227 155,227"/>
+  </g>
+  <g fill="#ffffff" opacity="0.85">
+    <rect x="34" y="16" width="213" height="22" rx="11"/>
+    <rect x="259" y="21" width="97" height="12" rx="6" opacity="0.6"/>
+    <rect x="34" y="214" width="143" height="10" rx="5" opacity="0.5"/>
+    <rect x="189" y="214" width="79" height="10" rx="5" opacity="0.35"/>
+  </g>
+</svg>

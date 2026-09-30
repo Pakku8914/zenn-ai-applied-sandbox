@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>中間プロジェクト 商品カタログ（模範解答版）</title>
+    <style>
+      body { margin: 0; font-family: system-ui, sans-serif; color: #1f2937; background: #ffffff; }
+      .site-header { max-width: 960px; margin: 0 auto; padding: 24px 24px 0; }
+      .site-header h1 { font-size: 28px; margin: 0 0 12px; }
+      .lead { margin: 0 0 16px; font-size: 18px; line-height: 1.7; }
+      #root { max-width: 960px; margin: 0 auto; padding: 0 24px 24px; }
+    </style>
+    <!-- 計測タグは head から外し、fixed/main.tsx で load の後に実行する -->
+    <script type="module" src="/src/sessions/mid01/fixed/main.tsx"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>商品カタログ</h1>
+      <p class="lead">
+        今週のおすすめ商品を集めました。文具・書籍・雑貨・食品の 4 つのカテゴリから、2,000 件の商品を価格つきで一覧にしています。商品名で絞り込むと、入力に合わせて一覧が切り替わります。価格帯の分布はグラフでも確かめられます。
+      </p>
+    </header>
+    <div id="root"></div>
+  </body>
+</html>

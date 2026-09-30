@@ -1,0 +1,44 @@
+/* S16 Good：キーボードで操作しているときは、いまどこにいるかを必ず見せる */
+.s16-good :focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+/* スケルトン。opacity だけを動かす（合成のみのアニメーション。S06） */
+.s16-skeleton-bar {
+  width: 60%;
+  height: 16px;
+  border-radius: 4px;
+  background: #e5e7eb;
+  animation: s16-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes s16-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ダイアログは下から少しせり上がって現れる */
+.s16-dialog[open] {
+  animation: s16-slide-in 200ms ease-out;
+}
+
+@keyframes s16-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+.s16-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* OS の「視差効果を減らす」「アニメーションを減らす」が有効なら、動きを止める */
+@media (prefers-reduced-motion: reduce) {
+  .s16-skeleton-bar,
+  .s16-dialog[open] {
+    animation: none;
+  }
+}

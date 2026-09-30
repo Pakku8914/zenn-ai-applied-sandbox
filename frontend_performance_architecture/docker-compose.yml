@@ -86,16 +86,27 @@ services:
     image: node:24.20.0-trixie-slim
     profiles: ["next"]
     working_dir: /next
+    # 計測は本番ビルドに対して行う（dev サーバーを計測しない方針は SPA と同じ）
     command: >
       sh -c "npm install --no-fund --no-audit &&
-             npm run dev -- --hostname 0.0.0.0 --port 3000"
+             npm run build &&
+             npm run start -- --hostname 0.0.0.0 --port 3000"
     volumes:
       - ./next:/next
       - next_node_modules:/next/node_modules
+    networks:
+      default:
+        aliases:
+          - next.test
     ports:
       - "127.0.0.1:3300:3000"
     environment:
-      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
 
 volumes:
   app_node_modules:

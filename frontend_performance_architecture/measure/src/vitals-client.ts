@@ -86,3 +86,51 @@ declare global {
     __webVitals?: Vital[];
   }
 }
+
+/** 中央値。CLS のように実行ごとに揺れる指標は、1回の値ではなく中央値で比べる。 */
+export function median(values: readonly number[]): number {
+  if (values.length === 0) throw new Error('median: 値が1つもありません');
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+/** ページが読み込んだ JS の合計バイト数（展開後）。分割の効果を「初期 JS 量」で比べるために使う。 */
+export async function jsBytes(page: Page): Promise<number> {
+  return page.evaluate(() =>
+    performance
+      .getEntriesByType('resource')
+      .filter((e) => new URL(e.name).pathname.endsWith('.js'))
+      .reduce((sum, e) => sum + (e as PerformanceResourceTiming).decodedBodySize, 0),
+  );
+}
+
+export type RunResult = { vitals: Vital[]; jsBytes: number };
+
+/**
+ * 同じ URL を runs 回（毎回新しいブラウザで）計測し、指標ごとの中央値を返す。
+ * input を渡すと LCP 取得後にその入力を行い、INP も計測する。
+ */
+export async function measureMedian(
+  url: string,
+  options: { runs?: number; input?: { selector: string; value: string } } = {},
+): Promise<{ median: Record<string, number>; runs: RunResult[] }> {
+  const runs: RunResult[] = [];
+  for (let i = 0; i < (options.runs ?? 3); i += 1) {
+    runs.push(
+      await withPage(async (page) => {
+        let vitals = await collectVitals(page, url);
+        if (options.input) {
+          vitals = await interactAndCollect(page, options.input.selector, options.input.value);
+        }
+        return { vitals, jsBytes: await jsBytes(page) };
+      }),
+    );
+  }
+  const names = new Set(runs.flatMap((r) => r.vitals.map((v) => v.name)));
+  const result: Record<string, number> = { jsBytes: median(runs.map((r) => r.jsBytes)) };
+  for (const name of names) {
+    result[name] = median(runs.flatMap((r) => r.vitals.filter((v) => v.name === name).map((v) => v.value)));
+  }
+  return { median: result, runs };
+}

@@ -11,16 +11,24 @@ docker compose exec -T lab bash tools/seed.sh
 echo "=== サンドボックスの自己検証（行数・拡張・実行計画の形） ==="
 docker compose exec -T lab python src/verify_setup.py
 
-# セッションごとの検証スクリプト（章の生成に合わせて src/sessionNN/ 配下に追加される）
-for f in $(docker compose exec -T lab sh -c 'ls src/session*/verify*.py 2>/dev/null || true' | tr -d '\r'); do
+# 章ごとの検証。各検証の前に出発点（主キーと外部キーのみ）へ戻すので、章どうしは互いに依存しない。
+# src/<章>/verify*.py（session02〜16・review01〜03・mid01・final）と sql/<章>/verify*.sql を拾う
+reset() {
+  docker compose exec -T lab bash tools/reset.sh >/dev/null
+}
+
+for f in $(docker compose exec -T lab sh -c 'ls src/*/verify*.py 2>/dev/null || true' | tr -d '\r'); do
   echo "=== $f ==="
+  reset
   docker compose exec -T lab python "$f"
 done
 
-# セッションごとの SQL 検証（期待値と一致しなければ psql が非 0 で終わる）
-for f in $(docker compose exec -T lab sh -c 'ls sql/session*/verify*.sql 2>/dev/null || true' | tr -d '\r'); do
+# 期待値と一致しなければ psql が非 0 で終わる
+for f in $(docker compose exec -T lab sh -c 'ls sql/*/verify*.sql 2>/dev/null || true' | tr -d '\r'); do
   echo "=== $f ==="
+  reset
   docker compose exec -T lab psql -v ON_ERROR_STOP=1 -q -f "$f"
 done
+reset
 
 echo "すべての検証に成功しました。"

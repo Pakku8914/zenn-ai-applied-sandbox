@@ -44,3 +44,12 @@ COMMIT;
 
 -- プランナが正しい統計で判断できるようにする（統計がないと本文の実行計画が再現しない）
 VACUUM (ANALYZE) customers, products, orders, order_items;
+
+-- 変更の検知用に、4テーブルの行数カウンタ（n_tup_ins など）を 0 にしておく。
+-- tools/reset.sh はカウンタとページ数を見て、章の実験でデータが変わっていたら入れ直す。
+-- 投入分のカウンタが後から反映されないよう、先に保留中の統計を書き出させる
+SELECT pg_stat_force_next_flush() AS flushed \gset
+SELECT count(pg_stat_reset_single_table_counters(oid)) AS reset_tables
+FROM pg_class
+WHERE relnamespace = 'public'::regnamespace
+  AND relname IN ('customers', 'products', 'orders', 'order_items') \gset

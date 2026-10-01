@@ -5,6 +5,7 @@
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;  -- クエリ別の統計
 CREATE EXTENSION IF NOT EXISTS pageinspect;         -- ページ・B+木の中身を直接読む
 CREATE EXTENSION IF NOT EXISTS pgstattuple;         -- 断片化・不要行の割合
+CREATE EXTENSION IF NOT EXISTS pg_visibility;       -- Visibility Map の中身（Index Only Scan の条件）
 CREATE EXTENSION IF NOT EXISTS btree_gin;           -- 複合インデックスの比較用
 
 CREATE TABLE customers (

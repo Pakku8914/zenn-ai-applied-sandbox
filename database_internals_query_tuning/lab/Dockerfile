@@ -11,6 +11,9 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends postgresql-client-18 default-mysql-client \
  && rm -rf /var/lib/apt/lists/*
 
+# mysql クライアント（MariaDB 系）の既定の文字コードは latin1。日本語が二重にエンコードされないよう utf8mb4 にする
+RUN printf '[client]\ndefault-character-set = utf8mb4\n' > /etc/mysql/conf.d/zz-utf8mb4.cnf
+
 WORKDIR /work
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

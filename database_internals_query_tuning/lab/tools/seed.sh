@@ -10,6 +10,6 @@ time psql -v ON_ERROR_STOP=1 -q -f sql/seed_pg.sql
 echo "--- MySQL へ投入 ---"
 # MySQL 9 は既定で TLS を要求するが、同梱のクライアントは自己署名証明書を検証して失敗する。
 # サンドボックス内の閉じた通信なので TLS を使わない（本番では必ず有効にする）。
-time mysql --skip-ssl -h "${MYSQL_HOST}" -ulab shopdb < sql/seed_mysql.sql
+time mysql --skip-ssl -h "${MYSQL_HOST}" -ulab "${MYSQL_DATABASE:-shopdb}" < sql/seed_mysql.sql
 
 echo "投入が完了しました。"

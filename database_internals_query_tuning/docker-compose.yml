@@ -6,6 +6,8 @@ services:
   # 主題材。内部構造を覗くための拡張を初期化時に有効化する
   pg:
     image: postgres:18.6-trixie
+    # メモリ不足で強制終了されても自動で起き上がるようにする（データはボリュームに残る）
+    restart: unless-stopped
     command:
       # 学習用に統計とログを厚めに取る。本番の推奨値ではないことを本文で明示する
       - -c
@@ -22,12 +24,16 @@ services:
       - work_mem=8MB
       - -c
       - autovacuum_naptime=10s
+      # JIT コンパイルの時間が実測に混ざると比較が読みにくくなるため切る（S08 で扱う）
+      - -c
+      - jit=off
     environment:
       POSTGRES_USER: lab
       POSTGRES_PASSWORD: labpass
       POSTGRES_DB: shopdb
-      # 出力を固定して本文の実行例と一致させる
-      LANG: C
+      # 並び順を固定して本文の実行例と一致させる（照合順序は C、文字コードは UTF8）。
+      # LANG=C だけを渡すと SQL_ASCII で初期化され、日本語の length() がバイト数になる
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
       PGTZ: UTC
     ports:
       - "127.0.0.1:5442:5432"
@@ -45,6 +51,7 @@ services:
   # 比較用。同じ問題を InnoDB がどう解いているかを見るためだけに使う
   mysql:
     image: mysql:9.7.2
+    restart: unless-stopped
     command:
       - --innodb-buffer-pool-size=256M
       - --slow-query-log=ON
@@ -80,7 +87,14 @@ services:
       PGDATABASE: shopdb
       MYSQL_HOST: mysql
       MYSQL_PWD: labpass
+      MYSQL_DATABASE: shopdb
+      # 端末から psql を開いたときも日本語の列がずれないよう、文字コードを UTF-8 に固定する
+      # （ロケールが無いと psql は client_encoding を SQL_ASCII にしてしまう）
+      LANG: C.UTF-8
+      PGCLIENTENCODING: UTF8
       PYTHONUNBUFFERED: "1"
+      # 章の verify から共通の道具（src/labcheck.py）を import できるようにする
+      PYTHONPATH: /work/src
     # 常駐させて exec で入る
     command: ["sleep", "infinity"]
     depends_on:

@@ -1,6 +1,8 @@
 -- InnoDB バッファプールの中身（information_schema.innodb_buffer_page）を読むには
 -- PROCESS 権限が必要。学習用サンドボックスなので lab ユーザーに付与する。
 GRANT PROCESS ON *.* TO 'lab'@'%';
+-- pg_stat_statements に相当する集計（performance_schema.events_statements_summary_by_digest）を読むため
+GRANT SELECT ON performance_schema.* TO 'lab'@'%';
 FLUSH PRIVILEGES;
 
 -- 比較用の MySQL 側スキーマ（PostgreSQL と同じ構造にしてある）。

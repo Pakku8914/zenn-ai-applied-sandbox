@@ -1,0 +1,34 @@
+"""1週間の献立を決める関数（session12/planner.py のコピー）。同じ利用者・同じ日の番号・同じ開始日なら、必ず同じ献立。"""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+from kondate.data import load_recipes, load_users
+
+
+class UnknownUser(Exception):
+    """ジョブの利用者が見つからない。何度やり直しても直らない（恒久的な失敗）。"""
+
+
+def find_user(user_id: str) -> dict:
+    for user in load_users():
+        if user["id"] == user_id:
+            return user
+    raise UnknownUser(user_id)
+
+
+def ranked(user: dict, kinds: set[str]) -> list[dict]:
+    allergies, prefs = set(user["allergies"]), set(user["preferences"])
+    ok = [r for r in load_recipes() if kinds & set(r["tags"]) and not allergies & set(r["allergens"])]
+    return sorted(ok, key=lambda r: (-len(prefs & set(r["tags"])), r["minutes"], r["id"]))
+
+
+def plan_day(user: dict, index: int, start: date) -> dict:
+    mains, sides = ranked(user, {"主菜"}), ranked(user, {"副菜", "汁物"})
+    return {"date": (start + timedelta(days=index)).isoformat(),
+            "recipe_ids": [mains[index % len(mains)]["id"], sides[index % len(sides)]["id"]]}
+
+
+def build_plan(user: dict, days: int, start: date) -> dict:
+    return {"days": [plan_day(user, i, start) for i in range(days)]}

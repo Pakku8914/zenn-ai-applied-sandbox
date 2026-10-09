@@ -1,0 +1,35 @@
+# Session 16：本番用イメージ。マルチステージ・非 root（uid 10001）・依存は固定版だけ・ヘルスチェック付き
+# ビルドの文脈は sandbox/ の直下（compose.yaml の api-prod が指定する）：
+#   docker compose --profile prod build api-prod
+
+# ---- 1段目（build）：依存を仮想環境に入れる。ビルドにしか使わないファイルとキャッシュは、この段に置いていく
+FROM python:3.12.14-slim AS build
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+COPY src/session16/requirements-prod.txt /tmp/requirements-prod.txt
+# --no-deps：一覧に無いものを勝手に入れない（固定した版だけが入る）
+# pip check：一覧から依存が漏れていたら、ここでビルドを失敗させる
+RUN python -m venv /opt/venv \
+ && /opt/venv/bin/pip install --no-deps -r /tmp/requirements-prod.txt \
+ && /opt/venv/bin/pip check
+
+# ---- 2段目（runtime）：実行に要るものだけを持ち込む
+FROM python:3.12.14-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH=/opt/venv/bin:$PATH
+RUN useradd --create-home --uid 10001 app
+WORKDIR /app
+COPY --from=build /opt/venv /opt/venv
+# コードは root の持ち物のまま置く（app ユーザーからは読めるが、書き換えられない）
+COPY kondate/ kondate/
+COPY src/__init__.py src/__init__.py
+COPY src/session16/ src/session16/
+USER 10001
+EXPOSE 8000
+# liveness（/health）を見る。依存先は見ない（DB が落ちてもコンテナは健康のまま）
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --start-interval=1s --retries=3 \
+  CMD ["python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200 else 1)"]
+# exec 形式（[...]）で書く。PID 1 が python になり、docker stop の SIGTERM がそのまま届く
+CMD ["python", "-m", "src.session16.serve"]

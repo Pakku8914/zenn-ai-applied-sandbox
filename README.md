@@ -24,6 +24,7 @@ Zenn で公開している書籍（[Pakku8914 の本](https://zenn.dev/pakku8914
 | [`database_internals_query_tuning/`](./database_internals_query_tuning) | 手を動かして学ぶ データベース内部構造とクエリ最適化 ― B+木・実行計画・MVCC から PostgreSQL のチューニングまで（近日公開） |
 | [`airflow_data_pipeline_training/`](./airflow_data_pipeline_training) | 手を動かして学ぶ Apache Airflow 実践入門 ― DAG 設計からデータパイプラインの本番運用・Amazon MWAA まで（近日公開） |
 | [`sre_observability_training/`](./sre_observability_training) | 手を動かして学ぶ SRE と可観測性の実践 ― SLO・OpenTelemetry・負荷試験でシステムの信頼性を設計する（近日公開） |
+| [`ai_app_backend_fastapi/`](./ai_app_backend_fastapi) | AIアプリ開発の道① バックエンド編 ― FastAPI で作る LLM API（ストリーミング・ジョブキュー・課金計測）（近日公開） |
 
 ## 使い方
 
@@ -50,6 +51,8 @@ AI 応用シリーズ（`rag_search_engineering/` `ai_agent_engineering/` `ai_in
 `ai_infra_edge_deployment/` だけは、モデルの取得と GGUF への変換・量子化が初回に必要です（合計 2GB 弱）。手順はそのディレクトリの `README.md` と書籍の「環境構築」章にあります。
 
 `aws_genai_developer_pro_active_recall/` は方式が異なり、**ナレッジベースのコーパス（`fixtures/kb_corpus.json`）をリポジトリに同梱しています**（サイズが小さく、決定的な検索結果を全章で共有するため）。ダウンロードも生成も不要で、`docker compose up -d` だけで始められます。
+
+`ai_app_backend_fastapi/` も**共通データ（`data/recipes.json`・`data/users.json`）を同梱しています**（小さく、全章で同じ値を使うため。`tools/make_data.py` で作り直しても同じ内容になります）。LLM は同梱の Claude / OpenAI 互換モック `mockllm/` に向くので、API キーも課金も不要です。サービス名は `api` で、検証は `docker compose exec api bash verify-all.sh` です。
 
 ## `aws_genai_developer_pro_active_recall/` について
 

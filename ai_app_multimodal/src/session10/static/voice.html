@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>こんだてAI ― 声で相談</title>
+<style>
+  body { font-family: sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+  button { font-size: 1rem; padding: .4rem 1rem; }
+  .label { color: #666; font-size: .9rem; }
+  #error { color: #b00020; }
+  #credit { color: #666; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>こんだてAI ― 声で相談</h1>
+<p>
+  <button id="start">話しはじめる</button>
+  <button id="stop" disabled>終わる</button>
+  <span id="state">待機中</span>
+</p>
+<p><span class="label">あなた：</span><span id="you"></span></p>
+<p><span class="label">こんだてAI：</span><span id="reply"></span></p>
+<p class="label" id="latency"></p>
+<p id="error"></p>
+<p id="credit"></p>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+let ws = null, micStream = null, micCtx = null, playCtx = null;
+let ready = false;          // サーバーから ready が届いたら音声を送り始める
+let muted = false;          // 返事を作っている間と、読み上げている間はマイクの音を送らない
+let pendingAudio = null;    // 直前に届いた audio（次のバイナリがその WAV）
+let playChain = Promise.resolve();
+let nextPlayAt = 0;
+let unmuteTimer = 0;
+
+$("start").onclick = async () => {
+  $("error").textContent = "";
+  // AudioContext はボタンを押した直後に作る（ユーザー操作の外で作ると、音が止まったままのブラウザがある）
+  micCtx = new AudioContext();
+  playCtx = playCtx || new AudioContext();
+  await playCtx.resume();
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+  } catch (e) {
+    $("error").textContent = `マイクを使えません（${e.name}）。http://localhost:8720/ で開いているか、ブラウザの許可を確かめてください`;
+    micCtx.close();
+    return;
+  }
+  await micCtx.audioWorklet.addModule("/static/pcm-worklet.js");
+  const source = micCtx.createMediaStreamSource(micStream);
+  const sender = new AudioWorkletNode(micCtx, "pcm-sender");
+  source.connect(sender);
+  sender.connect(micCtx.destination);   // 出力は無音。どこにもつながないと処理されないブラウザがあるのでつないでおく
+
+  const scheme = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${scheme}://${location.host}/ws/voice`);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => ws.send(JSON.stringify({ type: "start", sample_rate: 16000 }));
+  ws.onmessage = (e) => onMessage(e.data);
+  ws.onclose = (e) => { $("state").textContent = `切断しました（${e.code}）`; cleanup(); };
+  sender.port.onmessage = (e) => {      // 20ms（640 バイト）ごとに worklet から届く
+    if (ready && !muted && ws.readyState === WebSocket.OPEN) ws.send(e.data);
+  };
+  $("start").disabled = true;
+  $("stop").disabled = false;
+};
+
+$("stop").onclick = () => {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "stop" }));
+};
+
+function onMessage(data) {
+  if (typeof data !== "string") {       // バイナリ＝直前の audio の WAV
+    if (pendingAudio) enqueuePlay(data);
+    pendingAudio = null;
+    return;
+  }
+  const msg = JSON.parse(data);
+  switch (msg.type) {
+    case "ready":
+      ready = true;
+      $("credit").textContent = `音声：${msg.credit}`;   // VOICEVOX のクレジットは必ず表示する
+      $("state").textContent = "聞いています";
+      break;
+    case "vad":
+      if (msg.state === "speech_start") {
+        $("state").textContent = "話しています…";
+      } else {
+        $("state").textContent = "考えています…";
+        muted = true;
+        $("you").textContent = "";
+        $("reply").textContent = "";
+      }
+      break;
+    case "transcript":
+      $("you").textContent = msg.text;
+      break;
+    case "reply_delta":
+      $("reply").textContent += msg.text; // textContent なので、返答に HTML が混ざっても実行されない
+      break;
+    case "audio":
+      pendingAudio = msg;
+      break;
+    case "turn_end":
+      showLatency(msg.latency_ms);
+      unmuteAfterPlayback();
+      break;
+    case "error":
+      $("error").textContent = `${msg.error.message}（${msg.error.request_id}）`;
+      unmuteAfterPlayback();
+      break;
+  }
+}
+
+function enqueuePlay(wav) {
+  // decodeAudioData は終わる順番が前後しうるので、前の文を予約し終えてから次の文に取りかかる（順番どおりに鳴らす）
+  playChain = playChain.then(async () => {
+    const buffer = await playCtx.decodeAudioData(wav);  // 24kHz の WAV を、再生側のレートに合わせて読み込む
+    const node = playCtx.createBufferSource();
+    node.buffer = buffer;
+    node.connect(playCtx.destination);
+    const at = Math.max(playCtx.currentTime, nextPlayAt);
+    node.start(at);                                     // 前の文が鳴り終わる時刻に予約する
+    nextPlayAt = at + buffer.duration;
+  });
+}
+
+function unmuteAfterPlayback() {
+  // 読み上げが終わるまでマイクを止めておく（自分の声を拾って、次の発話と取り違えないため。割り込みは次章）
+  playChain = playChain.then(() => {
+    const waitMs = Math.max(0, nextPlayAt - playCtx.currentTime) * 1000 + 300;
+    clearTimeout(unmuteTimer);
+    unmuteTimer = setTimeout(() => { muted = false; $("state").textContent = "聞いています"; }, waitMs);
+  });
+}
+
+function showLatency(lat) {
+  const ms = (v) => (v === null ? "－" : `${v}ms`);
+  $("latency").textContent =
+    `VAD ${ms(lat.vad)} ／ 認識 ${ms(lat.stt)} ／ LLM（最初の文）${ms(lat.llm_first_sentence)}` +
+    ` ／ 合成（最初の文）${ms(lat.tts_first)} → 最初の音まで ${ms(lat.first_audio)}`;
+}
+
+function cleanup() {
+  if (micStream) micStream.getTracks().forEach((t) => t.stop());   // マイクを放す（ブラウザの録音中の表示が消える）
+  if (micCtx) micCtx.close();
+  micStream = micCtx = null;
+  ready = muted = false;
+  $("start").disabled = false;
+  $("stop").disabled = true;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "kondate_structured",
+  "description": "構造化出力（output_config.format / response_format）での献立表。スキーマに合わせて json_hints から値を埋める",
+  "priority": 40,
+  "match": {
+    "any": ["献立", "メニュー", "1週間", "3日"],
+    "output_format": true
+  },
+  "steps": [
+    {
+      "json_hints": {
+        "_array_len": 3,
+        "day": ["月曜日", "火曜日", "水曜日"],
+        "main": ["鶏むね肉とキャベツの塩炒め", "鮭のバター醤油焼き", "豚こま切れ肉と玉ねぎの生姜焼き"],
+        "side": ["豆腐とわかめのみそ汁", "ほうれん草のおひたし", "にんじんしりしり"],
+        "minutes": [15, 20, 20],
+        "shopping_list": ["鶏むね肉", "キャベツ", "生鮭", "豚こま切れ肉", "玉ねぎ", "豆腐", "わかめ", "ほうれん草", "にんじん"],
+        "note": "平日は20分以内で作れる主菜にしています。"
+      }
+    }
+  ]
+}

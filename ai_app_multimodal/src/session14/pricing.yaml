@@ -1,0 +1,23 @@
+# 月の費用の見積もりに使う単価表。
+#
+# ここに入っている数値は「例示用の仮の値」です。実際の料金ではありません。
+# 料金はモデルと時期で変わります。使う前に出典のページを開いて値を書き換え、
+# placeholder を false に、checked_at に確認した日（本書の基準日なら 2026-10-02）を書いてください。
+#
+#   LLM の出典：https://www.anthropic.com/pricing
+#   サーバーの出典：お使いのクラウドの料金ページ（vCPU 1つを1時間借りる料金）
+
+placeholder: true        # 仮の値のままなら true。実際の値に書き換えたら false にする
+checked_at: null         # 出典を確認した日（例：2026-10-02）
+currency: USD
+
+llm:                     # settings.llm_model（環境変数 LLM_MODEL）のモデルの単価
+  source: https://www.anthropic.com/pricing
+  input_per_mtok: 1.0          # 100万入力トークンあたり（仮の値）
+  output_per_mtok: 5.0         # 100万出力トークンあたり（仮の値）
+  cache_write_multiplier: 1.25 # プロンプトキャッシュの書き込み：入力単価に対する倍率（仮の値）
+  cache_read_multiplier: 0.1   # プロンプトキャッシュの読み出し：入力単価に対する倍率（仮の値）
+
+server:
+  source: null
+  vcpu_hour: 0.05              # vCPU 1つを1時間借りる料金（仮の値）

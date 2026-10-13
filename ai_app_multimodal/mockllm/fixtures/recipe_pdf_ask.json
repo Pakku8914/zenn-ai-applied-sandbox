@@ -1,0 +1,21 @@
+{
+  "name": "recipe_pdf_ask",
+  "description": "レシピ本 PDF への「何人分」の質問（構造化出力）。引用文は recipe_book.pdf の1ページ目（R029 肉じゃが）に実在する文言（③セッション5で追加）",
+  "priority": 65,
+  "match": {
+    "any": ["何人分"],
+    "has_document": true,
+    "output_format": true
+  },
+  "steps": [
+    {
+      "text": "肉じゃがは4人分です（1ページ「調理時間 35分　4人分」）。",
+      "json": {
+        "answer": "肉じゃがは4人分です。",
+        "citations": [
+          {"page": 1, "quote": "調理時間 35分　4人分"}
+        ]
+      }
+    }
+  ]
+}

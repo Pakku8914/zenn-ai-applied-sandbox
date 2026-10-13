@@ -1,0 +1,71 @@
+name: ai-multimodal-sandbox
+
+# ホストへ公開するのは api（8720）だけ。mockllm と voicevox は compose のネットワーク内からだけ使う。
+# 実際の Claude API を試すときだけ .env に ANTHROPIC_BASE_URL と ANTHROPIC_API_KEY を書く（.env.example 参照）。
+
+services:
+  api:
+    build: .
+    image: ai-multimodal-sandbox-app:1.0.0
+    # APP_MODULE を変えると、セッションごとのアプリに差し替えて起動できる（例：src.session04.app:app）
+    command: ["sh", "-c", "exec uvicorn ${APP_MODULE:-kondate.main:app} --host 0.0.0.0 --port 8000 --reload --reload-dir kondate --reload-dir src"]
+    ports:
+      - "8720:8000"
+    volumes:
+      - .:/app
+      - whisper-models:/models
+    environment:
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-http://mockllm:8080}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-mock-key}
+      LLM_MODEL: ${LLM_MODEL:-claude-sonnet-5-5}
+      LLM_MODEL_LIGHT: ${LLM_MODEL_LIGHT:-claude-haiku-4-5}
+      MOCKLLM_URL: http://mockllm:8080
+      VOICEVOX_URL: http://voicevox:50021
+      VOICEVOX_SPEAKER: "3"            # ずんだもん（ノーマル）。クレジット表記「VOICEVOX:ずんだもん」が必要
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_COMPUTE_TYPE: int8
+      WHISPER_CPU_THREADS: "2"
+      API_BASE_URL: http://api:8000
+      DATA_DIR: /app/data
+      MEDIA_DIR: /app/media
+    depends_on:
+      mockllm:
+        condition: service_healthy
+      voicevox:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200 else 1)"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 30s
+      start_interval: 500ms
+
+  mockllm:
+    build: ./mockllm
+    image: ai-series-mockllm:1.0.0
+    environment:
+      MOCKLLM_TTFT_MS: "0"
+      MOCKLLM_TPS: "0"
+    # ports は書かない（ホストへ公開しない）。healthcheck は Dockerfile に内蔵
+
+  voicevox:
+    # VOICEVOX ENGINE の CPU 版（amd64 / arm64 のマルチアーキテクチャ）。タグは固定する
+    image: voicevox/voicevox_engine:cpu-0.25.2
+    environment:
+      VV_CPU_NUM_THREADS: "2"
+    # ユーザー辞書・設定の置き場（/home/user/.local）をメモリ上に置く。エンジンは状態を持たない前提にし、
+    # 辞書は api が使う前に登録する（kondate/tts.py の ensure_user_dict）。コンテナを作り直すと消えるのは同じ
+    tmpfs:
+      - /home/user/.local:uid=1001,gid=1001,mode=0755,size=16m
+    # ports は書かない（ホストへ公開しない）
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:50021/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+      start_interval: 1s
+
+volumes:
+  whisper-models:

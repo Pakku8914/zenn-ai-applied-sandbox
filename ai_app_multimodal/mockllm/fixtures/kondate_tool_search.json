@@ -1,0 +1,26 @@
+{
+  "name": "kondate_tool_search",
+  "description": "search_recipes → get_recipe → 最終回答 の2往復ツールシナリオ。tools に search_recipes があるときだけ照合する",
+  "priority": 50,
+  "match": {
+    "any": ["冷蔵庫", "作れる", "レシピ", "献立", "探して"],
+    "tools": ["search_recipes"]
+  },
+  "steps": [
+    {
+      "content": [
+        {"type": "text", "text": "条件に合うレシピを探しますね。"},
+        {"type": "tool_use", "name": "search_recipes", "input": {"ingredients": ["鶏むね肉", "キャベツ"], "max_minutes": 20}}
+      ]
+    },
+    {
+      "content": [
+        {"type": "text", "text": "「鶏むね肉とキャベツの塩炒め」が条件に合いそうです。作り方を確認します。"},
+        {"type": "tool_use", "name": "get_recipe", "input": {"recipe_id": "R001"}}
+      ]
+    },
+    {
+      "text": "「鶏むね肉とキャベツの塩炒め」（R001）なら、20分以内で作れます。\n\n- 鶏むね肉はそぎ切りにして片栗粉をまぶすと、しっとり仕上がります。\n- キャベツは芯を薄切りにして先に炒めると、火の通りがそろいます。\n\nほかの候補も見たい場合は、使いたい食材や調理時間を教えてください。"
+    }
+  ]
+}

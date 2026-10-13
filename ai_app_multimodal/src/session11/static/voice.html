@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>こんだてAI ― 声で相談（割り込みできます）</title>
+<style>
+  body { font-family: sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+  button { font-size: 1rem; padding: .4rem 1rem; }
+  .label { color: #666; font-size: .9rem; }
+  #error { color: #b00020; }
+  #credit { color: #666; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>こんだてAI ― 声で相談</h1>
+<p>
+  <button id="start">話しはじめる</button>
+  <button id="stop" disabled>終わる</button>
+  <span id="state">待機中</span>
+</p>
+<p class="label">読み上げの途中でも、話しかけると止まります。マイクは接続している間ずっと使います。</p>
+<p><span class="label">あなた：</span><span id="you"></span></p>
+<p><span class="label">こんだてAI：</span><span id="reply"></span></p>
+<p class="label" id="latency"></p>
+<p class="label" id="echo"></p>
+<p id="error"></p>
+<p id="credit"></p>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+// ?ec=0 を付けて開くと、比べるためにエコー除去と雑音抑制を切る（練習問題3）
+const ECHO = new URLSearchParams(location.search).get("ec") !== "0";
+let ws = null, micStream = null, micCtx = null, playCtx = null;
+let ready = false;          // サーバーから ready が届いたら音声を送り始める
+let pendingAudio = null;    // 直前に届いた audio（次のバイナリがその WAV）
+let playChain = Promise.resolve();
+let nextPlayAt = 0;
+let playing = [];           // 予約した・鳴っている AudioBufferSourceNode（割り込まれたら止める）
+let generation = 0;         // interrupted のたびに増やす。前の世代の WAV は鳴らさない
+
+$("start").onclick = async () => {
+  $("error").textContent = "";
+  micCtx = new AudioContext();
+  playCtx = playCtx || new AudioContext();
+  await playCtx.resume();
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      // 読み上げ中もマイクを開けておくので、スピーカーから出た自分の声（エコー）を打ち消してもらう
+      audio: { channelCount: 1, echoCancellation: ECHO, noiseSuppression: ECHO },
+    });
+  } catch (e) {
+    $("error").textContent = `マイクを使えません（${e.name}）。http://localhost:8720/ で開いているか、ブラウザの許可を確かめてください`;
+    micCtx.close();
+    return;
+  }
+  // 要求どおりに効いているとは限らないので、実際の設定を表示する
+  const s = micStream.getAudioTracks()[0].getSettings();
+  $("echo").textContent = `エコー除去: ${s.echoCancellation ? "有効" : "無効"} ／ 雑音抑制: ${s.noiseSuppression ? "有効" : "無効"}`;
+  await micCtx.audioWorklet.addModule("/static/pcm-worklet.js");
+  const source = micCtx.createMediaStreamSource(micStream);
+  const sender = new AudioWorkletNode(micCtx, "pcm-sender");
+  source.connect(sender);
+  sender.connect(micCtx.destination);   // 出力は無音。どこにもつながないと処理されないブラウザがあるのでつないでおく
+
+  const scheme = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${scheme}://${location.host}/ws/voice`);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => ws.send(JSON.stringify({ type: "start", sample_rate: 16000 }));
+  ws.onmessage = (e) => onMessage(e.data);
+  ws.onclose = (e) => { $("state").textContent = `切断しました（${e.code}）`; cleanup(); };
+  sender.port.onmessage = (e) => {      // 読み上げ中も送り続ける（割り込みを聞き取るため）
+    if (ready && ws.readyState === WebSocket.OPEN) ws.send(e.data);
+  };
+  $("start").disabled = true;
+  $("stop").disabled = false;
+};
+
+$("stop").onclick = () => {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "stop" }));
+};
+
+function onMessage(data) {
+  if (typeof data !== "string") {       // バイナリ＝直前の audio の WAV
+    if (pendingAudio) enqueuePlay(data, generation);
+    pendingAudio = null;
+    return;
+  }
+  const msg = JSON.parse(data);
+  switch (msg.type) {
+    case "ready":
+      ready = true;
+      $("credit").textContent = `音声：${msg.credit}`;   // VOICEVOX のクレジットは必ず表示する
+      $("state").textContent = "聞いています";
+      break;
+    case "vad":
+      if (msg.state === "speech_start") {
+        $("state").textContent = "話しています…";
+      } else {
+        $("state").textContent = "考えています…";
+        $("you").textContent = "";
+        $("reply").textContent = "";
+      }
+      break;
+    case "interrupted":
+      stopPlayback();                     // 鳴っている文も、予約済みの文も、読み込み中の文も捨てる
+      $("state").textContent = `話しています…（読み上げを止めました。聞き終えた文：${msg.index}）`;
+      break;
+    case "transcript":
+      $("you").textContent = msg.text;
+      break;
+    case "reply_delta":
+      $("reply").textContent += msg.text; // textContent なので、返答に HTML が混ざっても実行されない
+      break;
+    case "audio":
+      pendingAudio = msg;
+      $("state").textContent = "読み上げています（話しかけると止まります）";
+      break;
+    case "turn_end":
+      showLatency(msg.latency_ms);
+      break;
+    case "error":
+      $("error").textContent = `${msg.error.message}（${msg.error.request_id}）`;
+      break;
+  }
+}
+
+function enqueuePlay(wav, gen) {
+  playChain = playChain.then(async () => {
+    const buffer = await playCtx.decodeAudioData(wav);
+    if (gen !== generation) return;                     // 読み込んでいる間に割り込まれた：鳴らさない
+    const node = playCtx.createBufferSource();
+    node.buffer = buffer;
+    node.connect(playCtx.destination);
+    const at = Math.max(playCtx.currentTime, nextPlayAt);
+    node.start(at);                                     // 前の文が鳴り終わる時刻に予約する
+    nextPlayAt = at + buffer.duration;
+    playing.push(node);
+    node.onended = () => {
+      playing = playing.filter((n) => n !== node);
+      if (playing.length === 0 && gen === generation) $("state").textContent = "聞いています";
+    };
+  });
+}
+
+function stopPlayback() {
+  generation += 1;
+  pendingAudio = null;
+  const nodes = playing;
+  playing = [];
+  for (const node of nodes) node.stop();   // まだ鳴り始めていない（予約だけの）文も、stop すれば鳴らない
+  nextPlayAt = 0;
+}
+
+function showLatency(lat) {
+  const ms = (v) => (v === null ? "－" : `${v}ms`);
+  $("latency").textContent =
+    `VAD ${ms(lat.vad)} ／ 認識 ${ms(lat.stt)} ／ LLM（最初の文）${ms(lat.llm_first_sentence)}` +
+    ` ／ 合成（最初の文）${ms(lat.tts_first)} → 最初の音まで ${ms(lat.first_audio)}`;
+}
+
+function cleanup() {
+  if (micStream) micStream.getTracks().forEach((t) => t.stop());   // マイクを放す（ブラウザの録音中の表示が消える）
+  if (micCtx) micCtx.close();
+  micStream = micCtx = null;
+  ready = false;
+  $("start").disabled = false;
+  $("stop").disabled = true;
+}
+</script>
+</body>
+</html>

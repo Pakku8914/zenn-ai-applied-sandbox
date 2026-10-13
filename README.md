@@ -25,6 +25,7 @@ Zenn で公開している書籍（[Pakku8914 の本](https://zenn.dev/pakku8914
 | [`airflow_data_pipeline_training/`](./airflow_data_pipeline_training) | 手を動かして学ぶ Apache Airflow 実践入門 ― DAG 設計からデータパイプラインの本番運用・Amazon MWAA まで（近日公開） |
 | [`sre_observability_training/`](./sre_observability_training) | 手を動かして学ぶ SRE と可観測性の実践 ― SLO・OpenTelemetry・負荷試験でシステムの信頼性を設計する（近日公開） |
 | [`ai_app_backend_fastapi/`](./ai_app_backend_fastapi) | AIアプリ開発の道① バックエンド編 ― FastAPI で作る LLM API（ストリーミング・ジョブキュー・課金計測）（近日公開） |
+| [`ai_app_multimodal/`](./ai_app_multimodal) | AIアプリ開発の道③ マルチモーダル編 ― 画像・PDF・音声を扱う AI アプリ（近日公開） |
 
 ## 使い方
 
@@ -53,6 +54,8 @@ AI 応用シリーズ（`rag_search_engineering/` `ai_agent_engineering/` `ai_in
 `aws_genai_developer_pro_active_recall/` は方式が異なり、**ナレッジベースのコーパス（`fixtures/kb_corpus.json`）をリポジトリに同梱しています**（サイズが小さく、決定的な検索結果を全章で共有するため）。ダウンロードも生成も不要で、`docker compose up -d` だけで始められます。
 
 `ai_app_backend_fastapi/` も**共通データ（`data/recipes.json`・`data/users.json`）を同梱しています**（小さく、全章で同じ値を使うため。`tools/make_data.py` で作り直しても同じ内容になります）。LLM は同梱の Claude / OpenAI 互換モック `mockllm/` に向くので、API キーも課金も不要です。サービス名は `api` で、検証は `docker compose exec api bash verify-all.sh` です。
+
+`ai_app_multimodal/` も共通データ（`data/`）と検証用の画像・PDF（`media/`。自作の合成データで、実写・著作物は含みません）を同梱しています。LLM は同梱のモック `mockllm/`、音声認識は faster-whisper（初回に `docker compose exec api python tools/fetch_whisper.py` でモデルを取得）、音声合成は VOICEVOX ENGINE をローカルで動かすので、API キーも課金も不要です。サービス名は `api` で、検証は `docker compose exec api bash verify-all.sh` です（全章で約5分）。合成音声を人に見せるときは、VOICEVOX とキャラクターの規約に従いクレジット（`VOICEVOX:ずんだもん`）を表示してください。
 
 ## `aws_genai_developer_pro_active_recall/` について
 
